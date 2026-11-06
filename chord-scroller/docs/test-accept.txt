@@ -1,0 +1,53 @@
+PASS [setup] gig with 6 songs in 2 sets
+PASS [reorder] move-up button puts the song first
+PASS [reorder] key, capo, BPM, singer, note and length stay after moving up
+PASS [reorder] moved to the reserve set with every setting kept
+PASS [reorder] Undo in the toast puts it back where it was
+PASS [reorder] mouse drag moves the 4th song to the top
+PASS [reorder] Ctrl+Z undoes the drag
+PASS [mobile] both rows are on screen before the finger drag
+PASS [mobile] dragging with a finger moves the 3rd song to the top: true
+PASS [mobile] move-down button works on a phone
+PASS [mobile] gig page fits the phone width
+PASS [order] next button walks the gig in its current order (both sets)
+PASS [order] previous goes back one
+PASS [order] each song shows its own gig BPM after switching
+PASS [isolation] เบรค 1 and เบรค 2 rows (order, key, BPM, singer) unchanged after all edits to the other gig
+PASS [reset] reset clears key, capo, BPM and length but keeps singer and note
+PASS [reset] Undo brings the gig settings back
+PASS [reset] player “คืนค่าเดิม” shows the song’s own BPM, key and no capo
+PASS [reset] and saves it to the gig
+PASS [reset] player reset can be undone
+PASS [time] total = songs + 15 min break + 30 s between songs (46:23)
+PASS [time] warns that the show runs over the planned 10 minutes
+PASS [time] readiness check lists the overrun
+PASS [time] break shows as its own row
+PASS [time] with 120 minutes it shows time left instead
+PASS [time] end of the song before the break says “พัก 15 นาที”: จบเพลง · พัก 15 นาที แล้ว ถัดไป ขี้หึงเพลงถัดไป
+PASS [time] next button skips the break to the following song
+PASS [ready] flags unclear chords/words
+PASS [ready] flags songs not checked against the recording and missing singers
+PASS [ready] panel opens by itself when something needs fixing
+PASS [ready] each problem links to where it is fixed
+PASS [history] two earlier versions kept: 2
+PASS [history] the oldest version is the original
+PASS [history] rolled back to the original as a new revision (4)
+PASS [history] the replaced version went into history too, so the rollback can itself be undone
+PASS [trash] song and its gig row deleted
+PASS [trash] deleted song is in the trash
+PASS [trash] restored song is back in the gig at the same place
+PASS [trash] deleted gig restored with all 8 rows
+PASS [trash] restored rows keep their key/capo/BPM/singer/note
+PASS [backup] after restore the data is identical to the backup (20 songs, 3 gigs, 30 rows)
+PASS [offline] gig says it is not ready offline yet
+PASS [offline] preparing reports success: พร้อมเล่นออฟไลน์แล้ว: แอปและ 7 เพลงอยู่ในเครื่องนี้
+PASS [offline] status chip says ready
+PASS [offline] page and gig open with the network off
+PASS [offline] a song plays offline
+PASS [offline] after an edit it asks to prepare again
+PASS [layout] #event fits 320px 
+PASS [layout] #data fits 320px 
+PASS [layout] #play fits 320px 
+PASS [layout] no script errors: 
+
+ALL 51 PASSED
