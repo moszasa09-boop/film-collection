@@ -1,0 +1,63 @@
+PASS round trip ก่อนตาย
+PASS round trip คุกเข่า
+PASS round trip ห้ามใจ
+PASS round trip รักไม่ช่วยอะไร
+PASS round trip ดีแต่ปาก
+PASS round trip กล้าพอไหม
+PASS round trip กลัวว่าฉันจะไม่เสียใจ
+PASS round trip ฝากที
+PASS round trip โปรดส่งใครมารักฉันที
+PASS round trip กระเป๋าแบนแฟนยิ้ม
+PASS round trip อ๊อด อ๊อด
+PASS round trip ยินดีที่ไม่รู้จัก
+PASS all starter chords recognised 
+PASS chord Am
+PASS chord C#m7
+PASS chord D/F#
+PASS chord Bbmaj7
+PASS chord Gsus4
+PASS chord Cadd9
+PASS chord E7b9
+PASS chord F#m7b5
+PASS chord Bdim
+PASS chord Caug
+PASS chord (C)
+PASS chord Am?
+PASS chord DmM7
+PASS chord G#/C
+PASS not a chord H
+PASS not a chord Cm#x
+PASS not a chord ไม่
+PASS not a chord C/
+PASS not a chord Am7?x
+PASS not a chord hello
+PASS not a chord C##
+PASS tr(D/F#,2) = E/G# want E/G#
+PASS tr(Bbm,1) = Bm want Bm
+PASS tr(G#/C,-1) = G/B want G/B
+PASS tr((C),2) = (D) want (D)
+PASS tr(C#,-1) = C want C
+PASS tr(Ebm,12) = Ebm want Ebm
+PASS tr(B,1) = C want C
+PASS tr(C,-1) = B want B
+PASS tr(F#m7b5,3) = Am7b5 want Am7b5
+PASS tr(DmM7,-2) = CmM7 want CmM7
+PASS key of ก่อนตาย C#, +2 = Eb
+PASS key of ห้ามใจ Em
+PASS capo 2 shapes
+PASS convert Thai line: [C#]เราทุกคนก็คง[F#]รู้วันเกิด
+PASS convert simple line: [Em]ฉันรักเธอ
+PASS chord-only line converts to marks: [G] [D]
+PASS bad chord and unbalanced bracket reported [{"line":1,"msg":"“Xm” ไม่ใช่รูปแบบคอร์ด (เช่น Am, C#m7, D/F#)"},{"line":2,"msg":"วงเล็บ [ ] ไม่ครบคู่"}]
+PASS format features parse [{"type":"instru","label":"INTRO","bars":["Em","C"],"note":"( 2 Times )"},{"type":"instru","label":"","bars":["G","D"],"note":""},{"type":"lines","lines":[[["","* "],["Am?","ร้อง {?เพลง}"]]],"section"
+PASS unclear markers counted 2
+PASS validation: empty title and negative BPM rejected
+PASS validation: BPM 300.5 rejected
+PASS English lyrics are ready
+PASS length halves at double BPM
+PASS ห้ามใจ repeats are written out
+PASS bad BPM falls back to 80
+PASS backup: non-JSON rejected
+PASS backup: other format rejected
+PASS backup: bad entries skipped and values clamped ["ข้ามเพลงที่ข้อมูลไม่ครบ: b","ข้ามเพลงที่ข้อมูลไม่ครบ: ok2","ข้ามรายการที่อ้างถึงงานหรือเพลงที่ไม่มีในไฟล์"]
+ALL 62 PASSED

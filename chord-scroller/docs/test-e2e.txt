@@ -1,0 +1,103 @@
+PASS [device] first open copies the 12 starter songs and the ITD gig {"songs":12,"events":1,"items":12,"mode":"device"}
+PASS [device] status says data is kept on this device
+PASS [device] empty gig name is refused
+PASS [device] show length 0 minutes is refused
+PASS [device] gig saved with date, venue, note, planned minutes
+PASS [device] second set added
+PASS [device] picker counts 3 chosen songs across searches
+PASS [device] four songs placed in the gig ห้ามใจ, ก่อนตาย, ฝากที, คุกเข่า
+PASS [device] picker warns a song is already in the gig
+PASS [device] gig shows count, total time and planned minutes
+PASS [device] negative BPM refused
+PASS [device] key +2, capo 2, BPM 100, singer and note saved on this gig {"eventId":"pq00yqmhfv89","setId":"89xhp4udiabz","songId":"sd0631e0d315","order":1000,"shift":2,"capo":2,"bpm":100,"singer":"โม","note":"เริ่มช้า ๆ","updatedAt":1793941291287,"updatedBy":null,"id":"fdwlpj8zw1sk"}
+PASS [device] the same song in ITD keeps its own settings
+PASS [device] row shows the gig key F#m and capo
+PASS [device] dragged 3rd song to the top: ห้ามใจ / ฝากที / คุกเข่า / ก่อนตาย → คุกเข่า / ห้ามใจ / ฝากที / ก่อนตาย
+PASS [device] dragged a song into the other set [2,2]
+PASS [device] move down button swaps with the next song
+PASS [device] order survives reload
+PASS [device] gig settings survive reload
+PASS [device] ห้ามใจ: shows this gig's BPM 100
+PASS [device] คุกเข่า: shows this gig's BPM 68
+PASS [device] ก่อนตาย: shows this gig's BPM 76
+PASS [device] ฝากที: shows this gig's BPM 96
+PASS [device] ห้ามใจ: key F#m, capo 2 shapes Em, singer shown: Bodyslamคีย์ F#m · คาโป้ 2 จับคอร์ด Emร้อง: โมงานแต่ง ธ.ค. · เพลงที่ 1/4ยาวประมาณ 3:07
+PASS [device] with +2 and capo 2 the chord shapes read as written (Em)
+PASS [device] gig note shown above the song
+PASS [device] next song is named
+PASS [device] end of song offers the next song: จบเพลง · ถัดไป คุกเข่าเพลงถัดไป
+PASS [device] next-song button opens the next song
+PASS [device] BPM changed in the player is saved to this gig item
+PASS [device] stage mode turns on
+PASS [device] 320px home fits: 
+PASS [device] 320px #event-pq00yqmhfv89 fits: 
+PASS [device] 320px #play-pq00yqmhfv89-fdwlpj8zw1sk fits: 
+PASS [device] 320px #library fits: 
+PASS [device] 320px #data fits: 
+PASS [device] 320px #new-text fits: 
+PASS [device] 360px home fits: 
+PASS [device] 360px #event-pq00yqmhfv89 fits: 
+PASS [device] 360px #play-pq00yqmhfv89-fdwlpj8zw1sk fits: 
+PASS [device] 360px #library fits: 
+PASS [device] 360px #data fits: 
+PASS [device] 360px #new-text fits: 
+PASS [device] copy has the same 4 songs
+PASS [device] deleting the copy leaves the original gig and the library alone
+PASS [device] empty song cannot be saved
+PASS [device] offers to convert chords written above the lyrics
+PASS [device] converted to inline chords: [Am]เธอคือความ[G]ฝัน
+PASS [device] a wrong chord is reported
+PASS [device] wrong chord blocks saving
+PASS [device] cannot mark as checked while a {? } mark remains
+PASS [device] preview highlights the unclear word
+PASS [device] song saved and opened in the player
+PASS [device] library shows the unclear mark count
+PASS [device] filter “มีจุดอ่านไม่ชัด” finds it
+PASS [device] warns the song already exists
+PASS [device] offers to update the existing song instead
+PASS [device] leaving with unsaved text asks first
+PASS [device] cancel keeps the typed text
+PASS [device] confirm leaves without saving
+PASS [device] edits to different songs from two tabs both survive ["แท็บ A","แท็บ B"]
+PASS [device] tab A is told someone saved this song
+PASS [device] saving over it opens the conflict choice
+PASS [device] both versions kept, nothing lost
+PASS [device] backup has 14 songs, 2 gigs, 16 items
+PASS [device] merge brings the deleted gig back with its 4 songs
+PASS [device] replace stays locked until “แทนที่” is typed
+PASS [device] replace makes the data match the file exactly ["ITD","งานแต่ง ธ.ค."]
+PASS [device] a broken file is refused before anything changes
+PASS [device] status pill reports the failed save instead of “saved”
+PASS [device] nothing pretends to be saved
+PASS [device] retry saves it once space is back
+PASS [device] no script errors: 
+PASS [shared] runs on the shared database
+PASS [shared] empty database offers the starter songs
+PASS [shared] starter songs and ITD gig written to the shared database
+PASS [shared] two pictures queued
+PASS [shared] pictures can be reordered
+PASS [shared] shows reading progress with a stop button
+PASS [shared] both pictures sent in order with the transcription and honesty rules
+PASS [shared] title, artist and BPM filled from the picture
+PASS [shared] unclear spots listed, with the reader’s own notes
+PASS [shared] preview highlights the unclear chord and word
+PASS [shared] “checked against the source” locked while marks remain
+PASS [shared] saved as “not yet checked”, never as correct
+PASS [shared] player warns about the 2 unclear spots
+PASS [shared] notices the song already exists
+PASS [shared] asks before overwriting the existing song
+PASS [shared] existing song updated in place (same id, rev 2)
+PASS [shared] reading failure is explained, nothing is invented
+PASS [shared] a refused write shows as failed
+PASS [shared] retry from the status pill succeeds
+PASS [shared] offline write shows “waiting to send”: ออฟไลน์ รอส่ง 1 รายการ
+PASS [shared] after reconnecting it says saved
+PASS [shared] no create button, read-only notice shown
+PASS [shared] no drag handles or delete for a viewer
+PASS [shared] editor refuses a viewer
+PASS [shared] viewer can still play; changes are only temporary
+PASS [shared] viewer sees the owner’s change
+PASS [shared] text size set by the owner does not leak into the viewer’s account (1)
+PASS [shared] no script errors: 
+
+ALL 101 PASSED
