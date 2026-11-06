@@ -1,7 +1,7 @@
 {
- "id": 3,
  "title": "ห้ามใจ",
  "artist": "Bodyslam",
+ "bpm": 80,
  "blocks": [
   {
    "type": "instru",
