@@ -75,7 +75,7 @@ function renderEditor(mode, songId) {
   </main>
   <div class="player" style="padding-bottom:env(safe-area-inset-bottom,0px)"><div class="wrap"><div class="row">
     <span class="small muted grow" id="ed-state"></span>
-    ${mode === "edit" ? `<button class="btn danger" type="button" id="ed-del">ลบเพลง</button>` : ""}
+    ${mode === "edit" ? `<button class="btn ghost" type="button" id="ed-hist">ประวัติ</button><button class="btn danger" type="button" id="ed-del">ลบเพลง</button>` : ""}
     <a class="btn ghost" href="${back}">ยกเลิก</a>
     <button class="btn primary" type="button" id="ed-save">บันทึก</button>
   </div></div></div>`;
@@ -144,6 +144,7 @@ function wireEditor() {
   };
   $("#ed-save").onclick = saveEditor;
   const del = $("#ed-del"); if (del) del.onclick = deleteFromEditor;
+  const hist = $("#ed-hist"); if (hist) hist.onclick = () => openSongHistory(ed.id);
   wireImagePanel();
 }
 
@@ -209,7 +210,7 @@ async function deleteFromEditor() {
   const used = usageOf(s.id);
   const names = [...used.keys()].map(id => (Store.events.get(id) || {}).name).filter(Boolean);
   const ok = await confirmDialog(`ลบเพลง “${s.title}” ออกจากคลัง?`,
-    used.size ? `เพลงนี้ใช้อยู่ใน ${used.size} งาน (${names.slice(0, 3).join(", ")}${names.length > 3 ? " …" : ""}) จะถูกเอาออกจากงานเหล่านั้นด้วย ลบแล้วกู้คืนได้จากไฟล์สำรองเท่านั้น` : "ลบแล้วกู้คืนได้จากไฟล์สำรองเท่านั้น", "ลบเพลง", true);
+    used.size ? `เพลงนี้ใช้อยู่ใน ${used.size} งาน (${names.slice(0, 3).join(", ")}${names.length > 3 ? " …" : ""}) จะถูกเอาออกจากงานเหล่านั้นด้วย กู้คืนพร้อมตำแหน่งในงานได้จากถังขยะ` : "กู้คืนได้จากถังขยะในหน้า “แชร์และสำรอง”", "ลบเพลง", true);
   if (!ok) return;
   closeEditor(); location.hash = "#library";
   if (await deleteSong(s.id, true)) toast("ลบเพลงแล้ว");
@@ -396,4 +397,30 @@ async function readImages() {
     const st = $("#ed-stop"), pr = $("#ed-progress"); if (st) st.hidden = true; if (pr) pr.hidden = true;
     drawThumbs();
   }
+}
+
+/* ---------- a song's earlier versions ---------- */
+async function openSongHistory(songId) {
+  const cur = Store.songs.get(songId); if (!cur) return;
+  const list = await historyList(h => h.kind === "song" && h.refId === songId);
+  if (!list) return;
+  openDialog(`<h2>ประวัติการแก้ไข</h2>
+    <p class="small muted" style="margin:0">ฉบับปัจจุบัน: แก้ล่าสุด ${esc(fmtAgo(cur.updatedAt))} · เก็บฉบับก่อนหน้าไว้ ${HISTORY_KEEP} ครั้งล่าสุด</p>
+    <div class="history-list">${list.map(h => `<div class="h"><span><b>${esc(h.data.title || "")}</b> <span class="small muted">${h.action === "delete" ? "ก่อนถูกลบ" : "ก่อนแก้"} · ${esc(fmtAgo(h.at))}</span></span>
+      <span class="row"><button class="btn ghost" type="button" data-view="${esc(h.id)}">ดู</button>${writable() ? `<button class="btn" type="button" data-restore="${esc(h.id)}">ใช้ฉบับนี้</button>` : ""}</span></div>`).join("") || `<p class="empty">ยังไม่มีฉบับก่อนหน้า</p>`}</div>
+    <div id="hist-view"></div>
+    <div class="actions"><button class="btn" data-a="c" type="button">ปิด</button></div>`, (el, d) => {
+    el.addEventListener("click", async e => {
+      const v = e.target.closest("[data-view]"), r = e.target.closest("[data-restore]");
+      if (e.target.closest('[data-a="c"]')) return d.close();
+      if (v) { const h = list.find(x => x.id === v.dataset.view); $("#hist-view", el).innerHTML = `<div class="preview"><div class="sheet">${sheetHTML(analyse(h.data.blocks || []), 0)}</div></div>`; }
+      if (r) {
+        const h = list.find(x => x.id === r.dataset.restore);
+        d.close();
+        if (ed && ed.dirty && !(await confirmDialog("ทิ้งสิ่งที่แก้อยู่?", "หน้าแก้ไขมีข้อความที่ยังไม่ได้บันทึก การใช้ฉบับเก่าจะแทนที่ข้อความนั้น", "ใช้ฉบับเก่า", true))) return;
+        if (!(await confirmDialog("ใช้ฉบับนี้แทนฉบับปัจจุบัน?", "ฉบับปัจจุบันจะถูกเก็บในประวัติ ย้อนกลับมาได้อีก", "ใช้ฉบับนี้"))) return;
+        if (await restoreHistory(h)) { toast("ย้อนกลับเป็นฉบับก่อนหน้าแล้ว"); closeEditor(); route(); }
+      }
+    });
+  }, { label: "ประวัติการแก้ไข" });
 }

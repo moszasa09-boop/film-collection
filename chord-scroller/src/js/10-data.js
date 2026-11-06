@@ -36,6 +36,10 @@ async function renderData() {
       <li>สมาชิกต้องเข้าสู่ระบบ claude.ai จึงจะเห็นข้อมูล คนนอกองค์กรหรือคนที่เปิดผ่านลิงก์สาธารณะจะดูได้อย่างเดียว</li></ol>
       <p class="small muted">การอ่านคอร์ดจากรูปใช้โควตา Claude ของคนที่กด ไม่ใช่ของเจ้าของ · ค่าที่ปรับเฉพาะตัว (ขนาดตัวอักษร โหมดเวที) เก็บแยกตามบัญชีในแต่ละเครื่อง</p>`}
 
+    <h2 class="section-title">ถังขยะ</h2>
+    <p class="small muted" style="margin:0 0 6px">เพลงและงานที่ถูกลบ กู้คืนได้พร้อมตำแหน่งในเซ็ตเดิม</p>
+    <div id="trash"><p class="small muted">กำลังโหลด…</p></div>
+
     <h2 class="section-title">สำรองข้อมูล</h2>
     <p style="margin:0 0 8px">ไฟล์เดียวมีเพลง งาน เซ็ต และค่าของแต่ละเพลงในงานครบ เก็บไว้กู้คืนหรือย้ายไปเครื่องอื่นได้</p>
     <div class="row"><button class="btn primary" id="bk-save" type="button">ดาวน์โหลดไฟล์สำรอง</button><button class="btn" id="bk-show" type="button">แสดงเป็นข้อความเพื่อคัดลอก</button></div>
@@ -48,6 +52,7 @@ async function renderData() {
     <div style="height:60px"></div>
   </main>`;
   $("#bk-save").onclick = saveBackupFile;
+  drawTrash();
   $("#bk-show").onclick = () => {
     const txt = JSON.stringify(makeBackup(), null, 1);
     $("#bk-out").innerHTML = `<label class="f" style="margin-top:8px"><span>ข้อความสำรอง (${Math.round(txt.length / 1024)} KB)</span><textarea id="bk-text" readonly rows="8">${esc(txt)}</textarea></label>
@@ -105,32 +110,38 @@ function checkBackup(raw) {
   const idOk = id => typeof id === "string" && /^[A-Za-z0-9_\-.~:@+]{1,80}$/.test(id) && id !== "." && id !== "..";
   const problems = [];
   const songs = [], events = [], items = [];
+  // ids of entries we skip: "replace all" must never delete what the file names but we could not read
+  const skipped = { songs: new Set(), events: new Set(), items: new Set() };
+  const skip = (c, x, msg) => { problems.push(msg); if (x && idOk(x.id)) skipped[c].add(x.id); };
   for (const s of Array.isArray(data.songs) ? data.songs : []) {
-    if (!idOk(s.id) || typeof s.title !== "string" || !s.title.trim() || !Array.isArray(s.blocks)) { problems.push(`ข้ามเพลงที่ข้อมูลไม่ครบ: ${String(s && s.title || s && s.id || "?").slice(0, 40)}`); continue; }
+    if (!idOk(s.id) || typeof s.title !== "string" || !s.title.trim() || !Array.isArray(s.blocks)) { skip("songs", s, `ข้ามเพลงที่ข้อมูลไม่ครบ: ${String(s && s.title || s && s.id || "?").slice(0, 40)}`); continue; }
     if (s.bpm != null && !validBpm(s.bpm)) s.bpm = null;
     songs.push(s);
   }
   for (const e of Array.isArray(data.events) ? data.events : []) {
-    if (!idOk(e.id) || typeof e.name !== "string" || !Array.isArray(e.sets) || !e.sets.every(x => x && idOk(x.id) && typeof x.name === "string")) { problems.push(`ข้ามงานที่ข้อมูลไม่ครบ: ${String(e && e.name || "?").slice(0, 40)}`); continue; }
+    if (!idOk(e.id) || typeof e.name !== "string" || !Array.isArray(e.sets) || !e.sets.every(x => x && idOk(x.id) && typeof x.name === "string")) { skip("events", e, `ข้ามงานที่ข้อมูลไม่ครบ: ${String(e && e.name || "?").slice(0, 40)}`); continue; }
     events.push(e);
   }
   const songIds = new Set([...songs.map(s => s.id), ...Store.songs.keys()]);
   const eventIds = new Set([...events.map(e => e.id), ...Store.events.keys()]);
   for (const it of Array.isArray(data.items) ? data.items : []) {
-    if (!idOk(it.id) || !idOk(it.eventId) || !idOk(it.songId) || typeof it.order !== "number" || !isFinite(it.order)) { problems.push("ข้ามรายการเพลงในเซ็ตที่ข้อมูลไม่ครบ"); continue; }
-    if (!eventIds.has(it.eventId) || !songIds.has(it.songId)) { problems.push("ข้ามรายการที่อ้างถึงงานหรือเพลงที่ไม่มีในไฟล์"); continue; }
+    const brk = it && it.kind === "break";
+    if (!idOk(it.id) || !idOk(it.eventId) || (!brk && !idOk(it.songId)) || typeof it.order !== "number" || !isFinite(it.order)) { skip("items", it, "ข้ามรายการเพลงในเซ็ตที่ข้อมูลไม่ครบ"); continue; }
+    if (!eventIds.has(it.eventId) || (!brk && !songIds.has(it.songId))) { skip("items", it, "ข้ามรายการที่อ้างถึงงานหรือเพลงที่ไม่มีในไฟล์"); continue; }
+    if (brk) { if (!(Number(it.minutes) >= 0 && Number(it.minutes) <= 240)) it.minutes = 0; items.push(it); continue; }
     if (it.bpm != null && !validBpm(it.bpm)) it.bpm = null;
-    it.capo = Number.isInteger(it.capo) ? clamp(it.capo, 0, 11) : 0;
-    it.shift = Number.isInteger(it.shift) ? clamp(it.shift, -6, 6) : 0;
+    if (it.capo != null && !(Number.isInteger(it.capo) && it.capo >= 0 && it.capo <= 11)) it.capo = Number.isInteger(it.capo) ? clamp(it.capo, 0, 11) : 0;
+    if (it.shift != null && !(Number.isInteger(it.shift) && it.shift >= -6 && it.shift <= 6)) it.shift = Number.isInteger(it.shift) ? clamp(it.shift, -6, 6) : 0;
+    if (it.durationSec != null && !validDur(it.durationSec)) it.durationSec = null;
     items.push(it);
   }
-  return { songs, events, items, problems, exportedAt: data.exportedAt };
+  return { songs, events, items, problems, skipped, exportedAt: data.exportedAt };
 }
 function previewRestore(raw) {
   const r = checkBackup(raw);
   if (r.fatal) { toast(r.fatal, 5000); return; }
   const over = c => r[c].filter(x => Store[c].has(x.id)).length;
-  const extra = c => [...Store[c].keys()].filter(id => !r[c].some(x => x.id === id)).length;
+  const extra = c => [...Store[c].keys()].filter(id => !r[c].some(x => x.id === id) && !r.skipped[c].has(id)).length;
   const admin = canReplaceAll();
   openDialog(`<h2>นำเข้าไฟล์สำรอง</h2>
     <p class="muted" style="margin:0">ไฟล์จาก ${esc(r.exportedAt ? fmtAgo(Date.parse(r.exportedAt)) : "ไม่ทราบเวลา")}: ${r.songs.length} เพลง · ${r.events.length} งาน · ${r.items.length} รายการในเซ็ต</p>
@@ -163,7 +174,7 @@ async function applyRestore(r, replace) {
   for (const it of r.items) { const { id, ...body } = it; await step("นำเข้ารายการเพลง", () => Store.db.doc("items/" + id).set(body)); }
   let removed = 0;
   if (replace && !failed) {
-    const keep = { songs: new Set(r.songs.map(x => x.id)), events: new Set(r.events.map(x => x.id)), items: new Set(r.items.map(x => x.id)) };
+    const keep = { songs: new Set([...r.songs.map(x => x.id), ...r.skipped.songs]), events: new Set([...r.events.map(x => x.id), ...r.skipped.events]), items: new Set([...r.items.map(x => x.id), ...r.skipped.items]) };
     for (const c of ["items", "events", "songs"]) for (const id of [...Store[c].keys()]) if (!keep[c].has(id)) {
       if (await track("ลบรายการที่ไม่มีในไฟล์", () => Store.db.doc(c + "/" + id).delete())) removed++; else failed++;
     }
@@ -172,4 +183,20 @@ async function applyRestore(r, replace) {
     : `นำเข้าครบ ${done} รายการ${replace ? ` · ลบรายการที่ไม่มีในไฟล์ ${removed} รายการ` : ""}`;
   if (out) out.innerHTML = `<div class="banner ${failed ? "bad" : "info"}"><span class="grow">${esc(msg)}</span></div>`;
   toast(msg, 6000);
+}
+
+async function drawTrash() {
+  const box = $("#trash"); if (!box) return;
+  const list = await trashList();
+  if (!$("#trash")) return;
+  if (!list) { box.innerHTML = `<p class="small muted">โหลดถังขยะไม่ได้</p>`; return; }
+  box.innerHTML = list.length ? `<div class="history-list">${list.map(h => `<div class="h"><span><b>${esc(h.title || "ไม่มีชื่อ")}</b> <span class="small muted">${h.kind === "song" ? "เพลง" : "งาน"} · ลบ ${esc(fmtAgo(h.at))}${h.extra && h.extra.items && h.extra.items.length ? ` · ${h.extra.items.length} รายการในเซ็ต` : ""}</span></span>
+    <span class="row">${writable() ? `<button class="btn" type="button" data-untrash="${esc(h.id)}">กู้คืน</button>` : ""}${canReplaceAll() ? `<button class="btn ghost" type="button" data-purge="${esc(h.id)}">ลบถาวร</button>` : ""}</span></div>`).join("")}</div>`
+    : `<p class="small muted">ถังขยะว่าง</p>`;
+  box.onclick = async e => {
+    const u = e.target.closest("[data-untrash]"), p = e.target.closest("[data-purge]");
+    const h = list.find(x => x.id === (u || p || {}).dataset?.untrash || x.id === (p || {}).dataset?.purge);
+    if (u && h) { if (await restoreHistory(h)) toast(`กู้ “${h.title}” แล้ว`); drawTrash(); }
+    if (p && h && await confirmDialog(`ลบ “${h.title}” ถาวร?`, "ลบประวัติทั้งหมดของรายการนี้ กู้คืนไม่ได้อีก", "ลบถาวร", true)) { await purgeHistory(h); drawTrash(); }
+  };
 }

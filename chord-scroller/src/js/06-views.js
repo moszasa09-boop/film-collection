@@ -35,7 +35,7 @@ function renderHomeList() {
     const today = new Date().toISOString().slice(0, 10);
     const upcoming = evs.filter(e => !e.date || e.date >= today), past = evs.filter(e => e.date && e.date < today);
     const card = ev => {
-      const sum = summarize(eventItems(ev.id));
+      const sum = summarize(eventItems(ev.id), ev);
       const over = ev.slotMinutes && sum.secs / 60 > ev.slotMinutes;
       return `<a class="event-card" href="#event-${ev.id}">
         <h3>${esc(ev.name || "ไม่มีชื่องาน")}</h3>
@@ -115,6 +115,7 @@ function openEventForm(eventId) {
       <div class="grid2">
         <label class="f"><span>วันที่</span><input id="ev-date" type="date" value="${esc(ev.date || "")}"></label>
         <label class="f"><span>เวลาแสดง (นาที)</span><input id="ev-slot" type="number" inputmode="numeric" min="1" max="1440" step="1" value="${ev.slotMinutes || ""}" placeholder="เช่น 90"></label>
+        <label class="f"><span>เว้นระหว่างเพลง (วินาที)</span><input id="ev-gap" type="number" inputmode="numeric" min="0" max="600" step="1" value="${ev.gapSeconds || ""}" placeholder="เช่น 20"></label>
       </div>
       <label class="f"><span>สถานที่</span><input id="ev-venue" maxlength="160" value="${esc(ev.venue || "")}"></label>
       <label class="f"><span>หมายเหตุ</span><textarea id="ev-note" maxlength="2000" rows="3">${esc(ev.note || "")}</textarea></label>
@@ -128,11 +129,13 @@ function openEventForm(eventId) {
       const name = $("#ev-name", el).value.trim();
       const slotRaw = $("#ev-slot", el).value.trim();
       const slot = slotRaw ? Number(slotRaw) : null;
-      const err = !name ? "ใส่ชื่องาน" : slot != null && !(Number.isInteger(slot) && slot >= 1 && slot <= 1440) ? "เวลาแสดงต้องเป็นนาที 1–1440" : "";
+      const gapRaw = $("#ev-gap", el).value.trim(), gap = gapRaw ? Number(gapRaw) : 0;
+      const err = !name ? "ใส่ชื่องาน" : slot != null && !(Number.isInteger(slot) && slot >= 1 && slot <= 1440) ? "เวลาแสดงต้องเป็นนาที 1–1440"
+        : !(Number.isInteger(gap) && gap >= 0 && gap <= 600) ? "เวลาระหว่างเพลงต้องเป็นวินาที 0–600" : "";
       $("#ev-err", el).textContent = err;
       $("#ev-name", el).setAttribute("aria-invalid", !name);
       if (err) return;
-      const fields = { name, date: $("#ev-date", el).value || "", venue: $("#ev-venue", el).value.trim(), note: $("#ev-note", el).value.trim(), slotMinutes: slot };
+      const fields = { name, date: $("#ev-date", el).value || "", venue: $("#ev-venue", el).value.trim(), note: $("#ev-note", el).value.trim(), slotMinutes: slot, gapSeconds: gap };
       d.close();
       if (eventId) { await updateEvent(eventId, fields); }
       else { const id = await createEvent(fields); if (id) location.hash = "#event-" + id; }

@@ -81,7 +81,7 @@ async function fitsWidth(p, w) {
 
   await step('per-gig settings', async () => {
     const itemId = await st(a, id => [...ChordApp.Store.items.values()].find(i => i.eventId === id && ChordApp.Store.songs.get(i.songId).title === 'ห้ามใจ').id, evId);
-    await a.click(`[data-itemmenu="${itemId}"]`);
+    await a.click(`.item-row [data-itemmenu="${itemId}"]`);
     await a.click('#it-up'); await a.click('#it-up');
     await a.fill('#it-capo', '2'); await a.fill('#it-bpm', '-120');
     await a.click('#it-form button[type=submit]');
@@ -120,7 +120,7 @@ async function fitsWidth(p, w) {
   await step('move via settings and buttons', async () => {
     const o1 = await order();
     const firstId = await st(a, id => { const ev = ChordApp.Store.events.get(id); return [...ChordApp.Store.items.values()].filter(i => i.eventId === id && i.setId === ev.sets[0].id).sort((x, y) => x.order - y.order)[0].id; }, evId);
-    await a.click(`[data-itemmenu="${firstId}"]`); await a.click('#it-mdown'); await sleep(300);
+    await a.click(`.item-row [data-itemmenu="${firstId}"]`); await a.click('#it-mdown'); await sleep(300);
     const o2 = await order();
     ok(o2[0] === o1[1] && o2[1] === o1[0], 'move down button swaps with the next song');
   });

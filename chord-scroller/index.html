@@ -171,6 +171,15 @@ a.item-row:hover b, .item-row .open:hover b { color: var(--chord); }
 .drag-ghost { position: fixed; left: 0; top: 0; z-index: 60; pointer-events: none; background: var(--surface); border: 1px solid var(--now); border-radius: 10px; box-shadow: var(--shadow-pop); padding: 10px 14px; font-weight: 600; max-width: 80vw; }
 .drop-line { height: 3px; background: var(--now); border-radius: 2px; margin: -2px 0; }
 
+.break-row { background: var(--surface-2); }
+.break-row .t b { font-size: 15px; color: var(--muted); }
+details.ready { margin-top: 12px; border: 1px solid var(--rule); border-radius: 12px; padding: 10px 12px; background: var(--surface); }
+details.ready summary { cursor: pointer; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+details.ready .issues { margin-top: 10px; }
+details.ready .issues a { font-weight: 600; }
+.history-list { display: grid; gap: 6px; max-height: 50vh; overflow: auto; }
+.history-list .h { display: flex; gap: 8px; align-items: center; justify-content: space-between; border: 1px solid var(--rule); border-radius: 10px; padding: 8px 10px; flex-wrap: wrap; }
+.offline-state { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 /* totals bar */
 .totals { display: flex; flex-wrap: wrap; gap: 6px 14px; color: var(--muted); font-size: 14px; padding-block: 6px; }
 .totals b { color: var(--fg); font-weight: 600; font-variant-numeric: tabular-nums; }
@@ -200,6 +209,8 @@ label.f > span { font-weight: 600; }
 .sheet-dlg h2 { margin: 0; font-family: var(--f-display); font-size: 22px; }
 .sheet-dlg .actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; position: sticky; bottom: -18px; background: var(--surface); padding-block: 10px 0; }
 .toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(24px + env(safe-area-inset-bottom, 0px)); z-index: 70; background: var(--fg); color: var(--bg); padding: 10px 16px; border-radius: 10px; font-size: 14px; max-width: calc(100vw - 32px); box-shadow: var(--shadow-pop); }
+.toast { display: flex; align-items: center; gap: 12px; }
+.toast-act { background: transparent; border: 1px solid currentColor; color: inherit; border-radius: 8px; padding: 4px 10px; font-weight: 600; cursor: pointer; }
 .player-on .toast { bottom: calc(190px + env(safe-area-inset-bottom, 0px)); }
 
 /* picker */
@@ -831,22 +842,34 @@ function eventItems(eventId) {
 }
 const setItems = (eventId, setId) => eventItems(eventId).filter(i => i.setId === setId);
 const itemBpm = (item, song) => validBpm(item && item.bpm) ? item.bpm : validBpm(song && song.bpm) ? song.bpm : 80;
-function itemSeconds(item) { const s = Store.songs.get(item.songId); return s ? songSeconds(s.blocks, itemBpm(item, s)) : 0; }
+const validDur = v => Number.isInteger(v) && v >= 10 && v <= 3600;
+const isBreak = it => it && it.kind === "break";
+/** Seconds this row takes in the show: a break's minutes, a typed real length, or the estimate from BPM. */
+function itemSecs(it) {
+  if (isBreak(it)) return clamp(Number(it.minutes) || 0, 0, 240) * 60;
+  if (validDur(it.durationSec)) return it.durationSec;
+  const s = Store.songs.get(it.songId);
+  return s ? songSeconds(s.blocks, itemBpm(it, s)) : 0;
+}
 function usageOf(songId) {
   const out = new Map();
   for (const it of Store.items.values()) if (it.songId === songId) out.set(it.eventId, (out.get(it.eventId) || 0) + 1);
   return out;
 }
-function summarize(items) {
-  let secs = 0, ready = 0, checked = 0, missing = 0;
+/** Totals for a list of rows: songs, breaks, the gap between songs, readiness. */
+function summarize(items, ev) {
+  let songSecs = 0, breakSecs = 0, ready = 0, checked = 0, missing = 0, count = 0;
   for (const it of items) {
+    if (isBreak(it)) { breakSecs += itemSecs(it); continue; }
+    count++;
     const s = Store.songs.get(it.songId);
     if (!s) { missing++; continue; }
-    secs += songSeconds(s.blocks, itemBpm(it, s));
+    songSecs += itemSecs(it);
     if (songStats(s).ready) ready++;
     if (s.musicCheck === "checked") checked++;
   }
-  return { count: items.length, secs, ready, checked, missing };
+  const gapSecs = ev && ev.gapSeconds > 0 ? Math.max(0, count - 1) * ev.gapSeconds : 0;
+  return { count, secs: songSecs + breakSecs + gapSecs, songSecs, breakSecs, gapSecs, ready, checked, missing };
 }
 
 /* ---------- saving ----------
@@ -937,6 +960,8 @@ async function saveSong(song, baseRev, { force = false } = {}) {
       if (theirRev !== baseRev) return { conflict: { ...cur.data(), id } };
     }
     rev = Math.max(baseRev, cur && cur.exists ? (cur.data().rev || 0) : 0) + 1;
+    const before = cur && cur.exists ? { ...cur.data(), id } : Store.songs.get(id);
+    if (before) await keepHistory("song", id, before, "edit");
   }
   const body = songBody({ ...song, id }, rev);
   const ok = await track("บันทึกเพลง “" + body.title + "”", () => ref.set(body));
@@ -948,12 +973,14 @@ async function patchSong(id, patch) {
 }
 async function deleteSong(id, removeItems) {
   const items = [...Store.items.values()].filter(i => i.songId === id);
+  const before = Store.songs.get(id);
+  if (before) await keepHistory("song", id, before, "delete", { items: removeItems ? items : [] });
   if (removeItems) for (const it of items) await track("เอาเพลงออกจากงาน", () => Store.db.doc("items/" + it.id).delete());
   return track("ลบเพลง", () => Store.db.doc("songs/" + id).delete());
 }
 
 /* ---------- events, sets, items ---------- */
-const EVENT_FIELDS = ["name", "date", "venue", "note", "slotMinutes"];
+const EVENT_FIELDS = ["name", "date", "venue", "note", "slotMinutes", "gapSeconds"];
 async function createEvent(fields) {
   const id = newId();
   const body = { ...pick(fields, EVENT_FIELDS), sets: fields.sets || [{ id: newId(), name: "เซ็ตหลัก" }], createdAt: now(), updatedAt: now(), updatedBy: Store.me.id || null, setsRev: 1 };
@@ -977,6 +1004,8 @@ async function changeSets(eventId, mutate) {
   return track("บันทึกเซ็ต", () => ref.update({ sets, setsRev: (data.setsRev || 0) + 1, updatedAt: now(), updatedBy: Store.me.id || null }));
 }
 async function deleteEvent(id) {
+  const before = Store.events.get(id);
+  if (before) await keepHistory("event", id, before, "delete", { items: eventItems(id) });
   for (const it of eventItems(id)) await track("ลบรายการเพลง", () => Store.db.doc("items/" + it.id).delete());
   return track("ลบงาน", () => Store.db.doc("events/" + id).delete());
 }
@@ -990,15 +1019,20 @@ async function duplicateEvent(id) {
   }
   return nid;
 }
-const ITEM_FIELDS = ["eventId", "setId", "songId", "order", "shift", "capo", "bpm", "singer", "note"];
+const ITEM_FIELDS = ["eventId", "setId", "songId", "order", "shift", "capo", "bpm", "singer", "note", "kind", "minutes", "label", "durationSec"];
 async function addItems(eventId, setId, songIds) {
   let order = Math.max(0, ...setItems(eventId, setId).map(i => i.order || 0));
   let ok = true;
+  const created = [];
   for (const songId of songIds) {
     order += 1000;
+    const id = newId();
     const body = { eventId, setId, songId, order, shift: 0, capo: 0, bpm: null, singer: "", note: "", updatedAt: now(), updatedBy: Store.me.id || null };
-    ok = (await track("เพิ่มเพลงเข้าเซ็ต", () => Store.db.doc("items/" + newId()).set(body))) && ok;
+    const done = await track("เพิ่มเพลงเข้าเซ็ต", () => Store.db.doc("items/" + id).set(body));
+    if (done) created.push(id);
+    ok = done && ok;
   }
+  if (created.length) pushUndo(`เพิ่ม ${created.length} เพลงแล้ว`, async () => { let r = true; for (const id of created) r = (await removeItem(id)) && r; return r; });
   return ok;
 }
 async function patchItem(id, patch) {
@@ -1045,13 +1079,131 @@ async function seedBuiltin(quiet) {
   return ok;
 }
 
+/* ---------- history, trash, restore ----------
+   Before a song is overwritten or a song/gig is deleted, its previous state is copied to history/{id}
+   (with the gig rows it took along). The last 30 versions per song are kept. Restoring writes the old
+   state back as a new revision, so restoring is itself undoable. */
+const HISTORY_KEEP = 30;
+const plain = o => { const r = JSON.parse(JSON.stringify(o || {})); delete r.id; return r; };
+async function keepHistory(kind, refId, data, action, extra) {
+  const body = { kind, refId, action, rev: (data && data.rev) || 0, title: (data && (data.title || data.name)) || "", data: plain(data),
+    extra: extra ? { items: (extra.items || []).map(i => ({ ...plain(i), id: i.id })) } : null, at: now(), by: Store.me.id || null };
+  const ok = await track("เก็บประวัติ", () => Store.db.doc("history/" + newId()).set(body));
+  if (ok) pruneHistory(kind, refId);
+  return ok;
+}
+async function historyList(filter) {
+  try {
+    const snap = await withTimeout(Store.db.collection("history").get(), 8000);
+    return snap.docs.map(d => ({ ...d.data(), id: d.id })).filter(filter || (() => true)).sort((a, b) => b.at - a.at);
+  } catch (e) { toast("โหลดประวัติไม่ได้: " + errText(e)); return null; }
+}
+async function pruneHistory(kind, refId) {
+  const list = await historyList(h => h.kind === kind && h.refId === refId && h.action === "edit");
+  if (!list) return;
+  for (const h of list.slice(HISTORY_KEEP)) await track("ล้างประวัติเก่า", () => Store.db.doc("history/" + h.id).delete());
+}
+/** Deleted songs and gigs that are not back yet, newest first. */
+async function trashList() {
+  const list = await historyList(h => h.action === "delete");
+  if (!list) return null;
+  const seen = new Set();
+  return list.filter(h => {
+    const key = h.kind + ":" + h.refId;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return !(h.kind === "song" ? Store.songs.has(h.refId) : Store.events.has(h.refId));
+  });
+}
+async function restoreHistory(h) {
+  if (h.kind === "song") {
+    const cur = Store.songs.get(h.refId);
+    if (cur) {
+      const r = await saveSong({ ...h.data, id: h.refId, createdAt: cur.createdAt }, cur.rev || 0, { force: true });
+      return !!(r && r.ok);
+    }
+    const body = { ...h.data, rev: (h.rev || 0) + 1, updatedAt: now(), updatedBy: Store.me.id || null };
+    let ok = await track("กู้เพลง " + (h.title || ""), () => Store.db.doc("songs/" + h.refId).set(body));
+    for (const it of (h.extra && h.extra.items) || []) {
+      if (!Store.events.has(it.eventId) || Store.items.has(it.id)) continue;
+      const { id, ...ib } = it;
+      ok = (await track("คืนเพลงเข้างาน", () => Store.db.doc("items/" + id).set(ib))) && ok;
+    }
+    return ok;
+  }
+  const body = { ...h.data, updatedAt: now(), updatedBy: Store.me.id || null };
+  let ok = await track("กู้งาน " + (h.title || ""), () => Store.db.doc("events/" + h.refId).set(body));
+  for (const it of (h.extra && h.extra.items) || []) {
+    if (Store.items.has(it.id) || (!isBreak(it) && !Store.songs.has(it.songId))) continue;
+    const { id, ...ib } = it;
+    ok = (await track("คืนรายการเพลง", () => Store.db.doc("items/" + id).set(ib))) && ok;
+  }
+  return ok;
+}
+async function purgeHistory(h) {
+  const all = await historyList(x => x.kind === h.kind && x.refId === h.refId);
+  for (const x of all || []) await track("ลบถาวร", () => Store.db.doc("history/" + x.id).delete());
+}
+
+/* ---------- undo for gig edits ----------
+   Reordering, moving, adding, removing and resetting rows push an undo step. The toast offers
+   “ย้อนกลับ”, and Ctrl/⌘+Z on the gig page undoes the latest step. */
+const undoStack = [];
+function pushUndo(label, revert) {
+  undoStack.push({ label, revert, at: now() });
+  if (undoStack.length > 30) undoStack.shift();
+  toast(label, 8000, { text: "ย้อนกลับ", run: undoLast });
+}
+async function undoLast() {
+  const u = undoStack.pop();
+  if (!u) { toast("ไม่มีอะไรให้ย้อนกลับ"); return; }
+  const ok = await u.revert();
+  toast(ok === false ? "ย้อนกลับไม่สำเร็จ ดูที่ปุ่มสถานะ" : "ย้อนกลับแล้ว: " + u.label);
+}
+const rowState = it => ({ setId: it.setId, order: it.order });
+async function moveItemUndoable(itemId, eventId, setId, beforeId, label = "ย้ายเพลงแล้ว") {
+  const it = Store.items.get(itemId); if (!it) return false;
+  const before = rowState(it);
+  const ok = await moveItem(itemId, eventId, setId, beforeId);
+  if (ok) pushUndo(label, () => patchItem(itemId, before));
+  return ok;
+}
+async function patchItemUndoable(itemId, patch, label = "บันทึกแล้ว") {
+  const it = Store.items.get(itemId); if (!it) return false;
+  const before = {};
+  for (const k of Object.keys(patch)) before[k] = it[k] === undefined ? null : it[k];
+  const ok = await patchItem(itemId, patch);
+  if (ok) pushUndo(label, () => patchItem(itemId, before));
+  return ok;
+}
+async function removeItemUndoable(itemId) {
+  const it = Store.items.get(itemId); if (!it) return false;
+  const { id, ...body } = it;
+  const ok = await removeItem(itemId);
+  if (ok) pushUndo("เอาออกจากเซ็ตแล้ว", () => track("คืนเพลงเข้าเซ็ต", () => Store.db.doc("items/" + id).set(body)));
+  return ok;
+}
+async function addBreak(eventId, setId, minutes, label) {
+  const order = Math.max(0, ...setItems(eventId, setId).map(i => i.order || 0)) + 1000;
+  const id = newId();
+  const ok = await track("เพิ่มช่วงพัก", () => Store.db.doc("items/" + id).set({ eventId, setId, kind: "break", minutes, label: label || "พัก", order, updatedAt: now(), updatedBy: Store.me.id || null }));
+  if (ok) pushUndo("เพิ่มช่วงพักแล้ว", () => removeItem(id));
+  return ok;
+}
+
 /* ---------- shell: header, status pill, toasts, dialogs ---------- */
 const app = document.getElementById("app");
 let toastTimer = 0;
-function toast(msg, ms = 3200) {
+function toast(msg, ms = 3200, action) {
   let el = $(".toast");
   if (!el) { el = document.createElement("div"); el.className = "toast"; el.setAttribute("role", "status"); document.body.appendChild(el); }
   el.textContent = msg;
+  if (action) {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "toast-act"; b.textContent = action.text;
+    b.onclick = () => { el.remove(); action.run(); };
+    el.appendChild(b);
+  }
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => el.remove(), ms);
 }
@@ -1221,7 +1373,7 @@ function renderHomeList() {
     const today = new Date().toISOString().slice(0, 10);
     const upcoming = evs.filter(e => !e.date || e.date >= today), past = evs.filter(e => e.date && e.date < today);
     const card = ev => {
-      const sum = summarize(eventItems(ev.id));
+      const sum = summarize(eventItems(ev.id), ev);
       const over = ev.slotMinutes && sum.secs / 60 > ev.slotMinutes;
       return `<a class="event-card" href="#event-${ev.id}">
         <h3>${esc(ev.name || "ไม่มีชื่องาน")}</h3>
@@ -1301,6 +1453,7 @@ function openEventForm(eventId) {
       <div class="grid2">
         <label class="f"><span>วันที่</span><input id="ev-date" type="date" value="${esc(ev.date || "")}"></label>
         <label class="f"><span>เวลาแสดง (นาที)</span><input id="ev-slot" type="number" inputmode="numeric" min="1" max="1440" step="1" value="${ev.slotMinutes || ""}" placeholder="เช่น 90"></label>
+        <label class="f"><span>เว้นระหว่างเพลง (วินาที)</span><input id="ev-gap" type="number" inputmode="numeric" min="0" max="600" step="1" value="${ev.gapSeconds || ""}" placeholder="เช่น 20"></label>
       </div>
       <label class="f"><span>สถานที่</span><input id="ev-venue" maxlength="160" value="${esc(ev.venue || "")}"></label>
       <label class="f"><span>หมายเหตุ</span><textarea id="ev-note" maxlength="2000" rows="3">${esc(ev.note || "")}</textarea></label>
@@ -1314,11 +1467,13 @@ function openEventForm(eventId) {
       const name = $("#ev-name", el).value.trim();
       const slotRaw = $("#ev-slot", el).value.trim();
       const slot = slotRaw ? Number(slotRaw) : null;
-      const err = !name ? "ใส่ชื่องาน" : slot != null && !(Number.isInteger(slot) && slot >= 1 && slot <= 1440) ? "เวลาแสดงต้องเป็นนาที 1–1440" : "";
+      const gapRaw = $("#ev-gap", el).value.trim(), gap = gapRaw ? Number(gapRaw) : 0;
+      const err = !name ? "ใส่ชื่องาน" : slot != null && !(Number.isInteger(slot) && slot >= 1 && slot <= 1440) ? "เวลาแสดงต้องเป็นนาที 1–1440"
+        : !(Number.isInteger(gap) && gap >= 0 && gap <= 600) ? "เวลาระหว่างเพลงต้องเป็นวินาที 0–600" : "";
       $("#ev-err", el).textContent = err;
       $("#ev-name", el).setAttribute("aria-invalid", !name);
       if (err) return;
-      const fields = { name, date: $("#ev-date", el).value || "", venue: $("#ev-venue", el).value.trim(), note: $("#ev-note", el).value.trim(), slotMinutes: slot };
+      const fields = { name, date: $("#ev-date", el).value || "", venue: $("#ev-venue", el).value.trim(), note: $("#ev-note", el).value.trim(), slotMinutes: slot, gapSeconds: gap };
       d.close();
       if (eventId) { await updateEvent(eventId, fields); }
       else { const id = await createEvent(fields); if (id) location.hash = "#event-" + id; }
@@ -1336,26 +1491,29 @@ function renderEvent(eventId) {
     return;
   }
   document.title = (ev.name || "งาน") + " · คอร์ดเลื่อนตามเพลง";
-  const all = eventItems(eventId), sum = summarize(all);
+  const all = eventItems(eventId), sum = summarize(all, ev);
+  const firstSong = all.find(i => !isBreak(i));
   const w = writable();
   const over = ev.slotMinutes && sum.secs / 60 > ev.slotMinutes;
   let n = 0;
   const sets = (ev.sets || []).map((set, si) => {
-    const its = all.filter(i => i.setId === set.id), s = summarize(its);
+    const its = all.filter(i => i.setId === set.id), s = summarize(its, ev);
     return `<section class="set" data-set="${esc(set.id)}">
       <div class="set-head"><h2>${esc(set.name)}</h2>
-        <span class="meta">${s.count} เพลง · ราว ${fmtMinutes(s.secs)} · พร้อมเล่น ${s.ready}/${s.count} · ตรวจกับเพลงจริง ${s.checked}/${s.count}</span>
+        <span class="meta">${s.count} เพลง · ราว ${fmtTime(s.secs)}${s.breakSecs ? ` (รวมพัก ${fmtMinutes(s.breakSecs)})` : ""} · พร้อมเล่น ${s.ready}/${s.count} · ตรวจกับเพลงจริง ${s.checked}/${s.count}</span>
         <span class="spacer"></span>
         ${w ? `<button class="btn" type="button" data-add="${esc(set.id)}">${ICON.plus} เพิ่มเพลง</button>
+        <button class="btn ghost" type="button" data-addbreak="${esc(set.id)}">${ICON.plus} พัก</button>
         <button class="icon-btn" type="button" data-setmenu="${esc(set.id)}" aria-label="ตัวเลือกเซ็ต ${esc(set.name)}">${ICON.more}</button>` : ""}
       </div>
       <div class="list" data-list="${esc(set.id)}">
-        ${its.map(it => itemRow(it, ++n, w)).join("") || `<p class="empty small">${w ? "ยังไม่มีเพลง กด “เพิ่มเพลง” หรือลากเพลงจากเซ็ตอื่นมาวาง" : "ยังไม่มีเพลง"}</p>`}
+        ${its.map(it => isBreak(it) ? breakRow(it, w) : itemRow(it, ++n, w)).join("") || `<p class="empty small">${w ? "ยังไม่มีเพลง กด “เพิ่มเพลง” หรือลากเพลงจากเซ็ตอื่นมาวาง" : "ยังไม่มีเพลง"}</p>`}
       </div>
     </section>`;
   }).join("");
   const orphan = all.filter(i => !(ev.sets || []).some(s => s.id === i.setId));
-  app.innerHTML = header({ title: esc(ev.name || "งาน"), back: "#", right: all.length ? `<a class="btn primary" href="#play-${ev.id}-${all[0].id}">${ICON.play} เล่น</a>` : "" }) + `
+  const slotLeft = ev.slotMinutes ? ev.slotMinutes * 60 - sum.secs : null;
+  app.innerHTML = header({ title: esc(ev.name || "งาน"), back: "#", right: firstSong ? `<a class="btn primary" href="#play-${ev.id}-${firstSong.id}">${ICON.play} เล่น</a>` : "" }) + `
   <main class="wrap">
     ${modeBanner()}
     <div class="page-head">
@@ -1363,10 +1521,12 @@ function renderEvent(eventId) {
       <p>${[ev.date && fmtDate(ev.date), ev.venue].filter(Boolean).map(esc).join(" · ") || "ยังไม่ระบุวันและสถานที่"}</p>
       ${ev.note ? `<p style="white-space:pre-wrap">${esc(ev.note)}</p>` : ""}
     </div>
-    <div class="totals"><span><b>${sum.count}</b> เพลง</span><span>เวลารวมราว <b>${fmtTime(sum.secs)}</b></span>
-      ${ev.slotMinutes ? `<span class="${over ? "over" : ""}">เวลางาน <b>${ev.slotMinutes}</b> นาที${over ? " · เกินเวลา" : ""}</span>` : ""}
+    <div class="totals"><span><b>${sum.count}</b> เพลง</span><span>เวลารวม <b>${fmtTime(sum.secs)}</b></span>
+      ${ev.slotMinutes ? `<span class="${over ? "over" : ""}">เวลางาน <b>${ev.slotMinutes}</b> นาที · ${over ? `<b>เกิน ${fmtTime(-slotLeft)}</b>` : `เหลือ <b>${fmtTime(slotLeft)}</b>`}</span>` : ""}
       <span>พร้อมเล่น <b>${sum.ready}/${sum.count}</b></span><span>ตรวจกับเพลงจริง <b>${sum.checked}/${sum.count}</b></span></div>
-    <p class="small muted" style="margin:0">เวลาเป็นค่าประมาณจาก BPM และจำนวนห้องของแต่ละเพลง ไม่รวมช่วงพักระหว่างเพลง</p>
+    <p class="small muted" style="margin:0">เวลารวม = เพลง ${fmtTime(sum.songSecs)} + พัก ${fmtTime(sum.breakSecs)} + ระหว่างเพลง ${fmtTime(sum.gapSecs)}${ev.gapSeconds ? ` (${ev.gapSeconds} วินาที/ครั้ง)` : ""} · ความยาวเพลงประมาณจาก BPM เว้นแต่ใส่ความยาวจริงไว้</p>
+    ${(() => { const o = offlineStatus(ev.id); return o ? `<div class="offline-state small" style="margin-top:10px"><span class="chip ${o.ready ? "ok" : ""}" id="offline-state">${esc(o.text)}</span><button class="btn ghost" type="button" data-offline="${esc(ev.id)}">${o.ready ? "เตรียมใหม่" : "เตรียมเล่นออฟไลน์"}</button></div>` : ""; })()}
+    ${readinessPanel(ev, all)}
     ${w ? `<div class="row" style="margin-top:10px">
       <button class="btn" type="button" id="ev-edit">แก้ไขข้อมูลงาน</button>
       <button class="btn" type="button" id="ev-addset">${ICON.plus} เพิ่มเซ็ต</button>
@@ -1377,11 +1537,13 @@ function renderEvent(eventId) {
     <div style="height:60px"></div>
   </main>`;
   if (!w) return;
+  app.querySelectorAll("[data-addbreak]").forEach(b => b.onclick = () => openBreakSheet(eventId, b.dataset.addbreak, null));
+  app.querySelectorAll("[data-breakmenu]").forEach(b => b.onclick = () => openBreakSheet(eventId, null, b.dataset.breakmenu));
   $("#ev-edit").onclick = () => openEventForm(eventId);
   $("#ev-addset").onclick = () => promptText("เพิ่มเซ็ต", "ชื่อเซ็ต เช่น เซ็ตเปิดงาน, เพลงสำรอง", "", name => changeSets(eventId, sets => [...sets, { id: newId(), name }]));
   $("#ev-dup").onclick = async () => { const id = await duplicateEvent(eventId); if (id) { toast("ทำสำเนาแล้ว"); location.hash = "#event-" + id; } };
   $("#ev-del").onclick = async () => {
-    if (await confirmDialog(`ลบงาน “${ev.name}”?`, `เพลง ${all.length} รายการในงานนี้จะถูกเอาออกจากงาน (เพลงในคลังยังอยู่) ลบแล้วกู้คืนได้จากไฟล์สำรองเท่านั้น`, "ลบงาน", true)) {
+    if (await confirmDialog(`ลบงาน “${ev.name}”?`, `เพลง ${sum.count} รายการในงานนี้จะถูกเอาออกจากงาน (เพลงในคลังยังอยู่) กู้คืนได้จากถังขยะในหน้า “แชร์และสำรอง”`, "ลบงาน", true)) {
       location.hash = "#"; await deleteEvent(eventId); toast("ลบงานแล้ว");
     }
   };
@@ -1389,6 +1551,70 @@ function renderEvent(eventId) {
   app.querySelectorAll("[data-setmenu]").forEach(b => b.onclick = () => openSetMenu(eventId, b.dataset.setmenu));
   app.querySelectorAll("[data-itemmenu]").forEach(b => b.onclick = () => openItemSheet(b.dataset.itemmenu));
   app.querySelectorAll(".handle").forEach(h => h.addEventListener("pointerdown", e => startDrag(e, h.dataset.drag, eventId)));
+}
+function breakRow(it, w) {
+  return `<div class="item-row break-row" data-item="${esc(it.id)}">
+    ${w ? `<button class="handle" type="button" data-drag="${esc(it.id)}" aria-label="ลากเพื่อเรียงลำดับ">${ICON.grip}</button>` : `<span class="n">–</span>`}
+    <span class="t"><b>${esc(it.label || "พัก")} · ${clamp(Number(it.minutes) || 0, 0, 240)} นาที</b><span class="a">ช่วงพัก ไม่มีเพลง</span></span>
+    <span class="acts">${w ? `<button class="icon-btn" type="button" data-breakmenu="${esc(it.id)}" aria-label="ตั้งค่าช่วงพัก">${ICON.more}</button>` : ""}</span>
+  </div>`;
+}
+/* ---------- ready for the stage? ---------- */
+function readinessIssues(ev, all) {
+  const out = [];
+  const songs = all.filter(i => !isBreak(i));
+  if (!songs.length) out.push({ level: "bad", text: "ยังไม่มีเพลงในงาน" });
+  const sum = summarize(all, ev);
+  if (ev.slotMinutes && sum.secs > ev.slotMinutes * 60) out.push({ level: "bad", text: `เวลารวม ${fmtTime(sum.secs)} เกินเวลางาน ${ev.slotMinutes} นาที` });
+  songs.forEach((it, i) => {
+    const s = Store.songs.get(it.songId), n = `${i + 1}. ${s ? s.title : "เพลงถูกลบ"}`;
+    if (!s) { out.push({ level: "bad", text: n + ": เพลงถูกลบจากคลัง", item: it.id }); return; }
+    const st = songStats(s);
+    if (!st.lyricLines) out.push({ level: "bad", text: n + ": ไม่มีเนื้อร้อง", song: s.id });
+    if (!st.chords) out.push({ level: "bad", text: n + ": ไม่มีคอร์ด", song: s.id });
+    if (st.unclear) out.push({ level: "warn", text: `${n}: อ่านไม่ชัด ${st.unclear} จุด`, song: s.id });
+    if (s.musicCheck !== "checked") out.push({ level: "info", text: n + ": ยังไม่ตรวจกับเพลงจริง", song: s.id });
+    if (!it.singer) out.push({ level: "info", text: n + ": ยังไม่กำหนดนักร้อง", item: it.id });
+    if (!validBpm(it.bpm) && !validBpm(s.bpm)) out.push({ level: "info", text: n + ": ยังไม่ตั้ง BPM (ใช้ 80)", item: it.id });
+  });
+  const off = typeof offlineStatus === "function" ? offlineStatus(ev.id) : null;
+  if (off && !off.ready) out.push({ level: "info", text: off.text, offline: true });
+  return out;
+}
+function readinessPanel(ev, all) {
+  const list = readinessIssues(ev, all);
+  const bad = list.filter(x => x.level === "bad").length, warn = list.filter(x => x.level === "warn").length, info = list.filter(x => x.level === "info").length;
+  const head = !list.length ? `<span class="chip ok">พร้อมขึ้นเวที</span>` :
+    `${bad ? `<span class="chip bad">ต้องแก้ ${bad}</span>` : ""}${warn ? `<span class="chip warn">ควรตรวจ ${warn}</span>` : ""}${info ? `<span class="chip">ยังไม่ครบ ${info}</span>` : ""}`;
+  const w = writable();
+  return `<details class="ready" ${bad || warn ? "open" : ""}><summary><b>ตรวจความพร้อมก่อนขึ้นเวที</b> ${head}</summary>
+    ${list.length ? `<ul class="issues">${list.map(x => `<li class="${x.level === "bad" ? "err" : x.level === "warn" ? "warn" : ""}">${esc(x.text)}
+      ${w && x.song ? ` <a href="#edit-${esc(x.song)}">แก้เพลง</a>` : ""}${w && x.item ? ` <button class="btn ghost" type="button" data-itemmenu="${esc(x.item)}">ตั้งค่า</button>` : ""}${x.offline ? ` <button class="btn ghost" type="button" data-offline="${esc(ev.id)}">เตรียมออฟไลน์</button>` : ""}</li>`).join("")}</ul>`
+    : `<p class="small muted">ทุกเพลงมีเนื้อร้องและคอร์ด ไม่มีจุดอ่านไม่ชัด ตรวจกับเพลงจริงแล้ว กำหนดนักร้องครบ และไม่เกินเวลา</p>`}
+  </details>`;
+}
+function openBreakSheet(eventId, setId, itemId) {
+  const it = itemId ? Store.items.get(itemId) : null;
+  const ev = Store.events.get(eventId);
+  openDialog(`<h2>${it ? "แก้ช่วงพัก" : "เพิ่มช่วงพัก"}</h2><form id="br" class="checks" novalidate>
+    <div class="grid2"><label class="f"><span>ชื่อ</span><input id="br-label" maxlength="40" value="${esc(it ? it.label || "พัก" : "พัก")}"></label>
+    <label class="f"><span>กี่นาที</span><input id="br-min" type="number" inputmode="numeric" min="1" max="240" step="1" value="${it ? it.minutes : 15}" autofocus></label></div>
+    ${it ? `<label class="f"><span>อยู่ในเซ็ต</span><select id="br-set">${(ev.sets || []).map(x => `<option value="${esc(x.id)}" ${x.id === it.setId ? "selected" : ""}>${esc(x.name)}</option>`).join("")}</select></label>` : ""}
+    <p class="f"><span class="err" id="br-err"></span></p>
+    <div class="actions">${it ? `<button class="btn danger" type="button" data-a="rm">ลบช่วงพัก</button>` : ""}<button class="btn ghost" type="button" data-a="c">ยกเลิก</button><button class="btn primary" type="submit">บันทึก</button></div></form>`, (el, d) => {
+    $('[data-a="c"]', el).onclick = () => d.close();
+    const rm = $('[data-a="rm"]', el); if (rm) rm.onclick = async () => { d.close(); await removeItemUndoable(itemId); };
+    $("#br", el).addEventListener("submit", async e => {
+      e.preventDefault();
+      const minutes = Number($("#br-min", el).value), label = $("#br-label", el).value.trim() || "พัก";
+      if (!(Number.isInteger(minutes) && minutes >= 1 && minutes <= 240)) { $("#br-err", el).textContent = "ใส่นาที 1–240"; return; }
+      d.close();
+      if (!it) return addBreak(eventId, setId, minutes, label);
+      const target = $("#br-set", el).value;
+      if (target !== it.setId) await moveItemUndoable(itemId, eventId, target, null);
+      if (minutes !== it.minutes || label !== it.label) await patchItemUndoable(itemId, { minutes, label }, "แก้ช่วงพักแล้ว");
+    });
+  }, { label: "ช่วงพัก" });
 }
 function itemRow(it, n, w) {
   const s = Store.songs.get(it.songId);
@@ -1453,7 +1679,7 @@ function openSetMenu(eventId, setId) {
 /* ---------- add songs from the library ---------- */
 function openPicker(eventId, setId) {
   const ev = Store.events.get(eventId);
-  const inEvent = new Set(eventItems(eventId).map(i => i.songId));
+  const inEvent = new Set(eventItems(eventId).filter(i => !isBreak(i)).map(i => i.songId));
   let q = "";
   const chosen = new Set();
   openDialog(`<h2>เพิ่มเพลงจากคลัง</h2>
@@ -1498,6 +1724,7 @@ function openItemSheet(itemId) {
         <label class="f"><span>คาโป้ (เฟร็ต)</span><input id="it-capo" type="number" inputmode="numeric" min="0" max="11" step="1" value="${it.capo || 0}"></label>
         <label class="f"><span>BPM ในงานนี้</span><input id="it-bpm" type="number" inputmode="numeric" min="40" max="220" step="1" value="${validBpm(it.bpm) ? it.bpm : ""}" placeholder="ใช้ค่าของเพลง (${s && validBpm(s.bpm) ? s.bpm : 80})"></label>
         <label class="f"><span>นักร้อง</span><input id="it-singer" maxlength="60" value="${esc(it.singer || "")}"></label>
+        <label class="f"><span>ความยาวจริง (นาที:วินาที)</span><input id="it-dur" inputmode="numeric" maxlength="6" value="${validDur(it.durationSec) ? fmtTime(it.durationSec) : ""}" placeholder="ประมาณ ${s ? fmtTime(songSeconds(s.blocks, itemBpm(it, s))) : "-"}"></label>
       </div>
       <label class="f"><span>หมายเหตุสำหรับงานนี้</span><textarea id="it-note" rows="2" maxlength="500">${esc(it.note || "")}</textarea></label>
       <label class="f"><span>อยู่ในเซ็ต</span><select id="it-set">${(ev.sets || []).map(x => `<option value="${esc(x.id)}" ${x.id === it.setId ? "selected" : ""}>${esc(x.name)}</option>`).join("")}</select></label>
@@ -1506,6 +1733,7 @@ function openItemSheet(itemId) {
         <button class="btn" type="button" id="it-mup" ${pos <= 0 ? "disabled" : ""}>เลื่อนขึ้น</button>
         <button class="btn" type="button" id="it-mdown" ${pos >= list.length - 1 ? "disabled" : ""}>เลื่อนลง</button>
         ${s ? `<a class="btn" href="#edit-${s.id}">แก้เนื้อเพลง/คอร์ด (มีผลทุกงาน)</a>` : ""}
+        <button class="btn" type="button" id="it-reset">คืนค่าเริ่มต้น</button>
         <button class="btn danger" type="button" id="it-rm">เอาออกจากเซ็ต</button>
       </div>
       <div class="actions"><button class="btn ghost" type="button" data-a="c">ยกเลิก</button><button class="btn primary" type="submit">บันทึก</button></div>
@@ -1516,25 +1744,29 @@ function openItemSheet(itemId) {
     $("#it-up", el).onclick = () => { shift = ((shift + 1 + 6 + 120) % 12) - 6; showKey(); el.dataset.dirty = "1"; };
     el.addEventListener("input", () => { el.dataset.dirty = "1"; });
     $('[data-a="c"]', el).onclick = () => d.tryClose();
-    $("#it-mup", el).onclick = async () => { d.close(); await moveItem(itemId, it.eventId, it.setId, list[pos - 1].id); };
-    $("#it-mdown", el).onclick = async () => { d.close(); await moveItem(itemId, it.eventId, it.setId, list[pos + 2] ? list[pos + 2].id : null); };
-    $("#it-rm", el).onclick = async () => { d.close(); if (await confirmDialog("เอาเพลงนี้ออกจากเซ็ต?", "เพลงยังอยู่ในคลัง และค่าคีย์/BPM ของงานนี้จะหายไป", "เอาออก", true)) removeItem(itemId); };
+    $("#it-mup", el).onclick = async () => { d.close(); await moveItemUndoable(itemId, it.eventId, it.setId, list[pos - 1].id, "เลื่อนขึ้นแล้ว"); };
+    $("#it-mdown", el).onclick = async () => { d.close(); await moveItemUndoable(itemId, it.eventId, it.setId, list[pos + 2] ? list[pos + 2].id : null, "เลื่อนลงแล้ว"); };
+    $("#it-rm", el).onclick = async () => { d.close(); await removeItemUndoable(itemId); };
+    $("#it-reset", el).onclick = async () => { d.close(); await patchItemUndoable(itemId, { shift: 0, capo: 0, bpm: null, durationSec: null }, "คืนคีย์ คาโป้ BPM และความยาวเป็นค่าของเพลงแล้ว"); };
     $("#it-form", el).addEventListener("submit", async e => {
       e.preventDefault();
       const capo = Number($("#it-capo", el).value || 0);
       const bpmRaw = $("#it-bpm", el).value.trim(), bpm = bpmRaw === "" ? null : Number(bpmRaw);
+      const durRaw = $("#it-dur", el).value.trim(), dm = /^(\d{1,2}):([0-5]\d)$/.exec(durRaw);
+      const durationSec = durRaw === "" ? null : dm ? (+dm[1]) * 60 + (+dm[2]) : NaN;
       const err = !(Number.isInteger(capo) && capo >= 0 && capo <= 11) ? "คาโป้ต้องเป็น 0–11"
-        : bpm != null && !validBpm(bpm) ? "BPM ต้องเป็นจำนวนเต็ม 40–220 หรือเว้นว่าง" : "";
+        : bpm != null && !validBpm(bpm) ? "BPM ต้องเป็นจำนวนเต็ม 40–220 หรือเว้นว่าง"
+        : durationSec !== null && !validDur(durationSec) ? "ความยาวต้องเป็น นาที:วินาที เช่น 4:05 (0:10–60:00) หรือเว้นว่าง" : "";
       $("#it-err", el).textContent = err;
       if (err) return;
       const patch = {};
       const setId = $("#it-set", el).value;
-      const vals = { shift, capo, bpm, singer: $("#it-singer", el).value.trim(), note: $("#it-note", el).value.trim() };
-      const old = { shift: it.shift || 0, capo: it.capo || 0, bpm: validBpm(it.bpm) ? it.bpm : null, singer: it.singer || "", note: it.note || "" };
+      const vals = { shift, capo, bpm, durationSec, singer: $("#it-singer", el).value.trim(), note: $("#it-note", el).value.trim() };
+      const old = { shift: it.shift || 0, capo: it.capo || 0, bpm: validBpm(it.bpm) ? it.bpm : null, durationSec: validDur(it.durationSec) ? it.durationSec : null, singer: it.singer || "", note: it.note || "" };
       for (const k in vals) if (old[k] !== vals[k]) patch[k] = vals[k];
       d.close();
-      if (setId !== it.setId) await moveItem(itemId, it.eventId, setId, null);
-      if (Object.keys(patch).length) { if (await patchItem(itemId, patch)) toast("บันทึกแล้ว"); }
+      if (setId !== it.setId) await moveItemUndoable(itemId, it.eventId, setId, null, "ย้ายเซ็ตแล้ว");
+      if (Object.keys(patch).length) await patchItemUndoable(itemId, patch, "บันทึกค่าของเพลงในงานแล้ว");
     });
   }, { label: "ตั้งค่าเพลงในงาน" });
 }
@@ -1586,7 +1818,7 @@ function startDrag(e, itemId, eventId) {
       const list = setItems(eventId, t.setId).map(i => i.id);
       const curIdx = list.indexOf(itemId), nextId = curIdx >= 0 ? list[curIdx + 1] || null : undefined;
       const unchanged = it.setId === t.setId && (t.beforeId === nextId);
-      if (!unchanged) await moveItem(itemId, eventId, t.setId, t.beforeId);
+      if (!unchanged) await moveItemUndoable(itemId, eventId, t.setId, t.beforeId, "ย้ายเพลงแล้ว");
     }
     if (renderAfterDrag || t) { renderAfterDrag = false; route(); }
   };
@@ -1594,6 +1826,13 @@ function startDrag(e, itemId, eventId) {
   window.addEventListener("pointerup", end);
   window.addEventListener("pointercancel", end);
 }
+
+document.addEventListener("keydown", e => {
+  if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === "z" && currentRoute && currentRoute.name === "event" && !dialogStack.length && !inside(e.target, "input, textarea, select")) {
+    e.preventDefault(); undoLast();
+  }
+});
+document.addEventListener("click", e => { const b = inside(e.target, "[data-offline]") && e.target.closest("[data-offline]"); if (b) prepareOffline(b.dataset.offline); });
 
 /* ---------- add / edit a song (from pictures, typed or pasted text) ---------- */
 let ed = null;          // editor state while the editor is open
@@ -1672,7 +1911,7 @@ function renderEditor(mode, songId) {
   </main>
   <div class="player" style="padding-bottom:env(safe-area-inset-bottom,0px)"><div class="wrap"><div class="row">
     <span class="small muted grow" id="ed-state"></span>
-    ${mode === "edit" ? `<button class="btn danger" type="button" id="ed-del">ลบเพลง</button>` : ""}
+    ${mode === "edit" ? `<button class="btn ghost" type="button" id="ed-hist">ประวัติ</button><button class="btn danger" type="button" id="ed-del">ลบเพลง</button>` : ""}
     <a class="btn ghost" href="${back}">ยกเลิก</a>
     <button class="btn primary" type="button" id="ed-save">บันทึก</button>
   </div></div></div>`;
@@ -1741,6 +1980,7 @@ function wireEditor() {
   };
   $("#ed-save").onclick = saveEditor;
   const del = $("#ed-del"); if (del) del.onclick = deleteFromEditor;
+  const hist = $("#ed-hist"); if (hist) hist.onclick = () => openSongHistory(ed.id);
   wireImagePanel();
 }
 
@@ -1806,7 +2046,7 @@ async function deleteFromEditor() {
   const used = usageOf(s.id);
   const names = [...used.keys()].map(id => (Store.events.get(id) || {}).name).filter(Boolean);
   const ok = await confirmDialog(`ลบเพลง “${s.title}” ออกจากคลัง?`,
-    used.size ? `เพลงนี้ใช้อยู่ใน ${used.size} งาน (${names.slice(0, 3).join(", ")}${names.length > 3 ? " …" : ""}) จะถูกเอาออกจากงานเหล่านั้นด้วย ลบแล้วกู้คืนได้จากไฟล์สำรองเท่านั้น` : "ลบแล้วกู้คืนได้จากไฟล์สำรองเท่านั้น", "ลบเพลง", true);
+    used.size ? `เพลงนี้ใช้อยู่ใน ${used.size} งาน (${names.slice(0, 3).join(", ")}${names.length > 3 ? " …" : ""}) จะถูกเอาออกจากงานเหล่านั้นด้วย กู้คืนพร้อมตำแหน่งในงานได้จากถังขยะ` : "กู้คืนได้จากถังขยะในหน้า “แชร์และสำรอง”", "ลบเพลง", true);
   if (!ok) return;
   closeEditor(); location.hash = "#library";
   if (await deleteSong(s.id, true)) toast("ลบเพลงแล้ว");
@@ -1995,6 +2235,32 @@ async function readImages() {
   }
 }
 
+/* ---------- a song's earlier versions ---------- */
+async function openSongHistory(songId) {
+  const cur = Store.songs.get(songId); if (!cur) return;
+  const list = await historyList(h => h.kind === "song" && h.refId === songId);
+  if (!list) return;
+  openDialog(`<h2>ประวัติการแก้ไข</h2>
+    <p class="small muted" style="margin:0">ฉบับปัจจุบัน: แก้ล่าสุด ${esc(fmtAgo(cur.updatedAt))} · เก็บฉบับก่อนหน้าไว้ ${HISTORY_KEEP} ครั้งล่าสุด</p>
+    <div class="history-list">${list.map(h => `<div class="h"><span><b>${esc(h.data.title || "")}</b> <span class="small muted">${h.action === "delete" ? "ก่อนถูกลบ" : "ก่อนแก้"} · ${esc(fmtAgo(h.at))}</span></span>
+      <span class="row"><button class="btn ghost" type="button" data-view="${esc(h.id)}">ดู</button>${writable() ? `<button class="btn" type="button" data-restore="${esc(h.id)}">ใช้ฉบับนี้</button>` : ""}</span></div>`).join("") || `<p class="empty">ยังไม่มีฉบับก่อนหน้า</p>`}</div>
+    <div id="hist-view"></div>
+    <div class="actions"><button class="btn" data-a="c" type="button">ปิด</button></div>`, (el, d) => {
+    el.addEventListener("click", async e => {
+      const v = e.target.closest("[data-view]"), r = e.target.closest("[data-restore]");
+      if (e.target.closest('[data-a="c"]')) return d.close();
+      if (v) { const h = list.find(x => x.id === v.dataset.view); $("#hist-view", el).innerHTML = `<div class="preview"><div class="sheet">${sheetHTML(analyse(h.data.blocks || []), 0)}</div></div>`; }
+      if (r) {
+        const h = list.find(x => x.id === r.dataset.restore);
+        d.close();
+        if (ed && ed.dirty && !(await confirmDialog("ทิ้งสิ่งที่แก้อยู่?", "หน้าแก้ไขมีข้อความที่ยังไม่ได้บันทึก การใช้ฉบับเก่าจะแทนที่ข้อความนั้น", "ใช้ฉบับเก่า", true))) return;
+        if (!(await confirmDialog("ใช้ฉบับนี้แทนฉบับปัจจุบัน?", "ฉบับปัจจุบันจะถูกเก็บในประวัติ ย้อนกลับมาได้อีก", "ใช้ฉบับนี้"))) return;
+        if (await restoreHistory(h)) { toast("ย้อนกลับเป็นฉบับก่อนหน้าแล้ว"); closeEditor(); route(); }
+      }
+    });
+  }, { label: "ประวัติการแก้ไข" });
+}
+
 /* ---------- the player ----------
    Plays one song, either inside a gig (with that gig's key, capo, BPM, singer and note, and previous/next
    in set order) or straight from the library. The sheet holds still and steps one line at a time,
@@ -2042,8 +2308,9 @@ function playerContext(kind, a, b) {
   if (kind === "event") {
     const ev = Store.events.get(a), item = Store.items.get(b);
     if (!ev || !item) return null;
-    const list = eventItems(a);
-    return { kind, event: ev, item, song: Store.songs.get(item.songId), list, index: list.findIndex(i => i.id === b) };
+    if (isBreak(item)) return null;
+    const full = eventItems(a), list = full.filter(i => !isBreak(i));
+    return { kind, event: ev, item, song: Store.songs.get(item.songId), list, full, index: list.findIndex(i => i.id === b) };
   }
   const song = Store.songs.get(a);
   return song ? { kind: "song", song, event: null, item: null, list: [], index: -1 } : null;
@@ -2072,7 +2339,7 @@ function renderPlayer(kind, a, b) {
     P.ctx = ctx;
     if (itemChanged) { const st = settingsFrom(ctx); P.bpm = st.bpm; P.shift = st.shift; P.capo = st.capo; P.itemSig = itemSig(ctx.item); }
     if (songChanged) { P.songRev = ctx.song.rev || 0; P.parts = analyse(ctx.song.blocks); rebuildSheet(); toast("เนื้อเพลงนี้เพิ่งถูกแก้ไข แสดงฉบับล่าสุดแล้ว"); }
-    else if (itemChanged) { rebuildSheet(); toast("ค่าของเพลงในงานนี้ถูกเปลี่ยนจากอีกเครื่อง"); }
+    else if (itemChanged) { rebuildSheet(); toast("ใช้ค่าล่าสุดของเพลงนี้ในงานแล้ว"); }
     refreshPlayerChrome();
     return;
   }
@@ -2130,6 +2397,7 @@ function renderPlayer(kind, a, b) {
         <button id="capo-down" type="button" aria-label="ลดคาโป้">−</button><span class="val" id="capo"></span><button id="capo-up" type="button" aria-label="เพิ่มคาโป้">+</button></div>
       <div class="stepper" role="group" aria-label="ขนาดตัวหนังสือ" style="grid-template-columns:auto 34px 34px;gap:6px"><span class="cap" style="grid-column:auto">ตัวอักษร</span>
         <button id="fs-down" type="button" aria-label="ตัวหนังสือเล็กลง" style="font-size:14px">A−</button><button id="fs-up" type="button" aria-label="ตัวหนังสือใหญ่ขึ้น" style="font-size:14px">A+</button></div>
+      <button class="btn ghost" type="button" id="reset" style="min-height:36px;padding:0 10px">คืนค่าเดิม</button>
       ${syncPill()}
       <span class="saved-note" id="saved-note" style="flex-basis:100%"></span>
     </div>
@@ -2185,7 +2453,7 @@ function queueSave(patch) {
 async function flushSave() {
   const ctx = P.ctx, patch = P.pendingSave; P.pendingSave = null;
   if (!ctx || !patch) return;
-  if (ctx.item) { await patchItem(ctx.item.id, patch); P.itemSig = itemSig({ ...ctx.item, ...patch }); }
+  if (ctx.item) { P.itemSig = itemSig({ ...ctx.item, ...patch }); await patchItem(ctx.item.id, patch); }
   else if ("bpm" in patch) await patchSong(ctx.song.id, { bpm: patch.bpm });
 }
 
@@ -2228,6 +2496,13 @@ function nextSectionName(k) {
   return "";
 }
 function nextSongItem() { const c = P.ctx; return c && c.event ? c.list[c.index + 1] : null; }
+/** Breaks planned between this song and the next one, e.g. "พัก 15 นาที". */
+function breakAfter() {
+  const c = P.ctx; if (!c || !c.full) return "";
+  const i = c.full.findIndex(x => x.id === c.item.id); const out = [];
+  for (let j = i + 1; j < c.full.length && isBreak(c.full[j]); j++) out.push(`${c.full[j].label || "พัก"} ${c.full[j].minutes} นาที`);
+  return out.join(", ");
+}
 function paint() {
   if (!pActive() || !P.rows.length) return;
   if (P.cur !== P.paintedCur) {
@@ -2240,7 +2515,8 @@ function paint() {
     const s = $(`.sec[data-sec="${p}"]`); if (s) s.classList.add("on");
     $("#now-sec").textContent = (P.parts[p] && P.parts[p].name) || "";
     const nx = nextSectionName(P.cur), ns = nextSongItem(), nsong = ns && Store.songs.get(ns.songId);
-    $("#next-sec").innerHTML = nx ? `ต่อไป <b>${esc(nx)}</b>` : nsong ? `ท่อนสุดท้าย · เพลงถัดไป <b>${esc(nsong.title)}</b>` : "ท่อนสุดท้าย";
+    const brk = breakAfter();
+    $("#next-sec").innerHTML = nx ? `ต่อไป <b>${esc(nx)}</b>` : brk ? `ท่อนสุดท้าย · แล้ว<b>${esc(brk)}</b>` : nsong ? `ท่อนสุดท้าย · เพลงถัดไป <b>${esc(nsong.title)}</b>` : "ท่อนสุดท้าย";
     P.paintedSec = p;
   }
   const d = rowDur(P.cur);
@@ -2253,7 +2529,8 @@ function paint() {
   const card = $("#next-card");
   if (card) {
     const ns = nextSongItem(), nsong = ns && Store.songs.get(ns.songId);
-    const html = P.ended ? (ns ? `<div class="next-card"><span>จบเพลง · ถัดไป <b>${esc(nsong ? nsong.title : "เพลงถูกลบ")}</b></span><a class="btn primary" href="#play-${P.ctx.event.id}-${ns.id}">เพลงถัดไป ${ICON.next}</a></div>`
+    const brk = breakAfter();
+    const html = P.ended ? (ns ? `<div class="next-card"><span>จบเพลง${brk ? ` · <b>${esc(brk)}</b> แล้ว` : " ·"} ถัดไป <b>${esc(nsong ? nsong.title : "เพลงถูกลบ")}</b></span><a class="btn primary" href="#play-${P.ctx.event.id}-${ns.id}">เพลงถัดไป ${ICON.next}</a></div>`
       : `<div class="next-card"><span>${P.ctx.event ? "จบเพลงสุดท้ายของงาน" : "จบเพลง"}</span><a class="btn" href="${P.ctx.event ? "#event-" + P.ctx.event.id : "#library"}">กลับ</a></div>`) : "";
     if (card.innerHTML !== html) card.innerHTML = html;
   }
@@ -2304,6 +2581,21 @@ function setFont(v) {
   document.documentElement.style.setProperty("--scale", fontScale);
   measure(); scrollToRow(P.cur, true);
 }
+/** Back to the song's own key, no capo and the song's BPM. In a gig this is saved to the gig row and can be undone. */
+async function resetSettings() {
+  const ctx = P.ctx; if (!ctx) return;
+  const before = { shift: P.shift, capo: P.capo, bpm: P.bpm };
+  P.shift = 0; P.capo = 0; P.bpm = validBpm(ctx.song.bpm) ? ctx.song.bpm : 80;
+  rebuildSheet(); retime(); refreshPlayerChrome();
+  if (ctx.item && writable()) {
+    clearTimeout(P.saveTimer); P.pendingSave = null;
+    P.itemSig = itemSig({ ...ctx.item, shift: 0, capo: 0, bpm: null });   // our own change: don't announce it as someone else's
+    await patchItemUndoable(ctx.item.id, { shift: 0, capo: 0, bpm: null }, "คืนคีย์ คาโป้ และ BPM เป็นค่าของเพลงแล้ว");
+  } else {
+    if (!ctx.item) prefs.set("lib:" + ctx.song.id, {});
+    toast("คืนค่าเดิมแล้ว", 6000, { text: "ย้อนกลับ", run: () => { P.shift = before.shift; P.capo = before.capo; P.bpm = before.bpm; rebuildSheet(); retime(); refreshPlayerChrome(); if (!ctx.item) prefs.set("lib:" + ctx.song.id, { shift: before.shift, capo: before.capo }); } });
+  }
+}
 function toggleStage() {
   const on = !document.body.classList.contains("stage");
   document.body.classList.toggle("stage", on); prefs.set("stage", on);
@@ -2326,6 +2618,7 @@ function wirePlayer() {
   $("#fs-down").onclick = () => setFont(fontScale - 0.1);
   $("#fs-up").onclick = () => setFont(fontScale + 0.1);
   $("#stage").onclick = toggleStage;
+  $("#reset").onclick = resetSettings;
   const seek = $("#seek");
   seek.addEventListener("input", () => { P.dragging = true; seekTo(P.total * seek.value / 1000); });
   seek.addEventListener("change", () => { P.dragging = false; });
@@ -2441,6 +2734,10 @@ async function renderData() {
       <li>สมาชิกต้องเข้าสู่ระบบ claude.ai จึงจะเห็นข้อมูล คนนอกองค์กรหรือคนที่เปิดผ่านลิงก์สาธารณะจะดูได้อย่างเดียว</li></ol>
       <p class="small muted">การอ่านคอร์ดจากรูปใช้โควตา Claude ของคนที่กด ไม่ใช่ของเจ้าของ · ค่าที่ปรับเฉพาะตัว (ขนาดตัวอักษร โหมดเวที) เก็บแยกตามบัญชีในแต่ละเครื่อง</p>`}
 
+    <h2 class="section-title">ถังขยะ</h2>
+    <p class="small muted" style="margin:0 0 6px">เพลงและงานที่ถูกลบ กู้คืนได้พร้อมตำแหน่งในเซ็ตเดิม</p>
+    <div id="trash"><p class="small muted">กำลังโหลด…</p></div>
+
     <h2 class="section-title">สำรองข้อมูล</h2>
     <p style="margin:0 0 8px">ไฟล์เดียวมีเพลง งาน เซ็ต และค่าของแต่ละเพลงในงานครบ เก็บไว้กู้คืนหรือย้ายไปเครื่องอื่นได้</p>
     <div class="row"><button class="btn primary" id="bk-save" type="button">ดาวน์โหลดไฟล์สำรอง</button><button class="btn" id="bk-show" type="button">แสดงเป็นข้อความเพื่อคัดลอก</button></div>
@@ -2453,6 +2750,7 @@ async function renderData() {
     <div style="height:60px"></div>
   </main>`;
   $("#bk-save").onclick = saveBackupFile;
+  drawTrash();
   $("#bk-show").onclick = () => {
     const txt = JSON.stringify(makeBackup(), null, 1);
     $("#bk-out").innerHTML = `<label class="f" style="margin-top:8px"><span>ข้อความสำรอง (${Math.round(txt.length / 1024)} KB)</span><textarea id="bk-text" readonly rows="8">${esc(txt)}</textarea></label>
@@ -2510,32 +2808,38 @@ function checkBackup(raw) {
   const idOk = id => typeof id === "string" && /^[A-Za-z0-9_\-.~:@+]{1,80}$/.test(id) && id !== "." && id !== "..";
   const problems = [];
   const songs = [], events = [], items = [];
+  // ids of entries we skip: "replace all" must never delete what the file names but we could not read
+  const skipped = { songs: new Set(), events: new Set(), items: new Set() };
+  const skip = (c, x, msg) => { problems.push(msg); if (x && idOk(x.id)) skipped[c].add(x.id); };
   for (const s of Array.isArray(data.songs) ? data.songs : []) {
-    if (!idOk(s.id) || typeof s.title !== "string" || !s.title.trim() || !Array.isArray(s.blocks)) { problems.push(`ข้ามเพลงที่ข้อมูลไม่ครบ: ${String(s && s.title || s && s.id || "?").slice(0, 40)}`); continue; }
+    if (!idOk(s.id) || typeof s.title !== "string" || !s.title.trim() || !Array.isArray(s.blocks)) { skip("songs", s, `ข้ามเพลงที่ข้อมูลไม่ครบ: ${String(s && s.title || s && s.id || "?").slice(0, 40)}`); continue; }
     if (s.bpm != null && !validBpm(s.bpm)) s.bpm = null;
     songs.push(s);
   }
   for (const e of Array.isArray(data.events) ? data.events : []) {
-    if (!idOk(e.id) || typeof e.name !== "string" || !Array.isArray(e.sets) || !e.sets.every(x => x && idOk(x.id) && typeof x.name === "string")) { problems.push(`ข้ามงานที่ข้อมูลไม่ครบ: ${String(e && e.name || "?").slice(0, 40)}`); continue; }
+    if (!idOk(e.id) || typeof e.name !== "string" || !Array.isArray(e.sets) || !e.sets.every(x => x && idOk(x.id) && typeof x.name === "string")) { skip("events", e, `ข้ามงานที่ข้อมูลไม่ครบ: ${String(e && e.name || "?").slice(0, 40)}`); continue; }
     events.push(e);
   }
   const songIds = new Set([...songs.map(s => s.id), ...Store.songs.keys()]);
   const eventIds = new Set([...events.map(e => e.id), ...Store.events.keys()]);
   for (const it of Array.isArray(data.items) ? data.items : []) {
-    if (!idOk(it.id) || !idOk(it.eventId) || !idOk(it.songId) || typeof it.order !== "number" || !isFinite(it.order)) { problems.push("ข้ามรายการเพลงในเซ็ตที่ข้อมูลไม่ครบ"); continue; }
-    if (!eventIds.has(it.eventId) || !songIds.has(it.songId)) { problems.push("ข้ามรายการที่อ้างถึงงานหรือเพลงที่ไม่มีในไฟล์"); continue; }
+    const brk = it && it.kind === "break";
+    if (!idOk(it.id) || !idOk(it.eventId) || (!brk && !idOk(it.songId)) || typeof it.order !== "number" || !isFinite(it.order)) { skip("items", it, "ข้ามรายการเพลงในเซ็ตที่ข้อมูลไม่ครบ"); continue; }
+    if (!eventIds.has(it.eventId) || (!brk && !songIds.has(it.songId))) { skip("items", it, "ข้ามรายการที่อ้างถึงงานหรือเพลงที่ไม่มีในไฟล์"); continue; }
+    if (brk) { if (!(Number(it.minutes) >= 0 && Number(it.minutes) <= 240)) it.minutes = 0; items.push(it); continue; }
     if (it.bpm != null && !validBpm(it.bpm)) it.bpm = null;
-    it.capo = Number.isInteger(it.capo) ? clamp(it.capo, 0, 11) : 0;
-    it.shift = Number.isInteger(it.shift) ? clamp(it.shift, -6, 6) : 0;
+    if (it.capo != null && !(Number.isInteger(it.capo) && it.capo >= 0 && it.capo <= 11)) it.capo = Number.isInteger(it.capo) ? clamp(it.capo, 0, 11) : 0;
+    if (it.shift != null && !(Number.isInteger(it.shift) && it.shift >= -6 && it.shift <= 6)) it.shift = Number.isInteger(it.shift) ? clamp(it.shift, -6, 6) : 0;
+    if (it.durationSec != null && !validDur(it.durationSec)) it.durationSec = null;
     items.push(it);
   }
-  return { songs, events, items, problems, exportedAt: data.exportedAt };
+  return { songs, events, items, problems, skipped, exportedAt: data.exportedAt };
 }
 function previewRestore(raw) {
   const r = checkBackup(raw);
   if (r.fatal) { toast(r.fatal, 5000); return; }
   const over = c => r[c].filter(x => Store[c].has(x.id)).length;
-  const extra = c => [...Store[c].keys()].filter(id => !r[c].some(x => x.id === id)).length;
+  const extra = c => [...Store[c].keys()].filter(id => !r[c].some(x => x.id === id) && !r.skipped[c].has(id)).length;
   const admin = canReplaceAll();
   openDialog(`<h2>นำเข้าไฟล์สำรอง</h2>
     <p class="muted" style="margin:0">ไฟล์จาก ${esc(r.exportedAt ? fmtAgo(Date.parse(r.exportedAt)) : "ไม่ทราบเวลา")}: ${r.songs.length} เพลง · ${r.events.length} งาน · ${r.items.length} รายการในเซ็ต</p>
@@ -2568,7 +2872,7 @@ async function applyRestore(r, replace) {
   for (const it of r.items) { const { id, ...body } = it; await step("นำเข้ารายการเพลง", () => Store.db.doc("items/" + id).set(body)); }
   let removed = 0;
   if (replace && !failed) {
-    const keep = { songs: new Set(r.songs.map(x => x.id)), events: new Set(r.events.map(x => x.id)), items: new Set(r.items.map(x => x.id)) };
+    const keep = { songs: new Set([...r.songs.map(x => x.id), ...r.skipped.songs]), events: new Set([...r.events.map(x => x.id), ...r.skipped.events]), items: new Set([...r.items.map(x => x.id), ...r.skipped.items]) };
     for (const c of ["items", "events", "songs"]) for (const id of [...Store[c].keys()]) if (!keep[c].has(id)) {
       if (await track("ลบรายการที่ไม่มีในไฟล์", () => Store.db.doc(c + "/" + id).delete())) removed++; else failed++;
     }
@@ -2578,6 +2882,95 @@ async function applyRestore(r, replace) {
   if (out) out.innerHTML = `<div class="banner ${failed ? "bad" : "info"}"><span class="grow">${esc(msg)}</span></div>`;
   toast(msg, 6000);
 }
+
+async function drawTrash() {
+  const box = $("#trash"); if (!box) return;
+  const list = await trashList();
+  if (!$("#trash")) return;
+  if (!list) { box.innerHTML = `<p class="small muted">โหลดถังขยะไม่ได้</p>`; return; }
+  box.innerHTML = list.length ? `<div class="history-list">${list.map(h => `<div class="h"><span><b>${esc(h.title || "ไม่มีชื่อ")}</b> <span class="small muted">${h.kind === "song" ? "เพลง" : "งาน"} · ลบ ${esc(fmtAgo(h.at))}${h.extra && h.extra.items && h.extra.items.length ? ` · ${h.extra.items.length} รายการในเซ็ต` : ""}</span></span>
+    <span class="row">${writable() ? `<button class="btn" type="button" data-untrash="${esc(h.id)}">กู้คืน</button>` : ""}${canReplaceAll() ? `<button class="btn ghost" type="button" data-purge="${esc(h.id)}">ลบถาวร</button>` : ""}</span></div>`).join("")}</div>`
+    : `<p class="small muted">ถังขยะว่าง</p>`;
+  box.onclick = async e => {
+    const u = e.target.closest("[data-untrash]"), p = e.target.closest("[data-purge]");
+    const h = list.find(x => x.id === (u || p || {}).dataset?.untrash || x.id === (p || {}).dataset?.purge);
+    if (u && h) { if (await restoreHistory(h)) toast(`กู้ “${h.title}” แล้ว`); drawTrash(); }
+    if (p && h && await confirmDialog(`ลบ “${h.title}” ถาวร?`, "ลบประวัติทั้งหมดของรายการนี้ กู้คืนไม่ได้อีก", "ลบถาวร", true)) { await purgeHistory(h); drawTrash(); }
+  };
+}
+
+/* ---------- getting a gig ready to play without internet ----------
+   Works on the public link (https). The app itself is cached by a service worker (sw.js) and every
+   page load keeps it fresh; "เตรียมเล่นออฟไลน์" also copies the gig, its sets and every song into this
+   browser and records what was copied, so the page can say plainly whether the gig is ready offline. */
+const OFFLINE_CACHE = "chordscroll-app";
+const offlineCapable = () => location.protocol === "https:" || location.hostname === "localhost" || location.hostname === "127.0.0.1";
+const swCapable = () => offlineCapable() && "serviceWorker" in navigator && "caches" in window && !(window.claude && Store.mode === "shared");
+let swReg = null;
+async function registerSW() {
+  if (!swCapable()) return null;
+  try { swReg = await navigator.serviceWorker.register("sw.js"); return swReg; } catch (e) { return null; }
+}
+function eventStamp(eventId) {
+  const ev = Store.events.get(eventId); if (!ev) return 0;
+  let t = ev.updatedAt || 0;
+  for (const it of eventItems(eventId)) {
+    t = Math.max(t, it.updatedAt || 0);
+    const s = !isBreak(it) && Store.songs.get(it.songId); if (s) t = Math.max(t, s.updatedAt || 0);
+  }
+  return t;
+}
+/** Synchronous answer for the readiness check: {ready, text}. */
+function offlineStatus(eventId) {
+  if (!swCapable()) return null;   // not offered here (claude.ai frame, file://)
+  const meta = prefs.get("offline:" + eventId, null);
+  if (!meta) return { ready: false, text: "ยังไม่ได้เตรียมงานนี้สำหรับเล่นออฟไลน์" };
+  if (eventStamp(eventId) > meta.stamp) return { ready: false, text: "มีการแก้ไขหลังเตรียมออฟไลน์ครั้งล่าสุด กดเตรียมใหม่" };
+  return { ready: true, text: `พร้อมเล่นออฟไลน์ · แอป ✓ · ${meta.songs} เพลง ✓ · เตรียมเมื่อ ${fmtAgo(meta.at)}` };
+}
+async function prepareOffline(eventId) {
+  if (!swCapable()) {
+    toast(Store.mode === "shared" ? "หน้านี้บน claude.ai เก็บไว้ใช้ออฟไลน์ไม่ได้ ใช้ลิงก์ github.io แทน" : "เปิดผ่านลิงก์ https (github.io) เพื่อเตรียมเล่นออฟไลน์", 6000);
+    return false;
+  }
+  const ev = Store.events.get(eventId); if (!ev) return false;
+  toast("กำลังเตรียมงานสำหรับเล่นออฟไลน์…", 10000);
+  try {
+    const reg = swReg || await registerSW();
+    if (!reg) throw new Error("service worker");
+    const cache = await caches.open(OFFLINE_CACHE);
+    await cache.add(new Request("./", { cache: "reload" }));
+    // fonts are optional: the page falls back to system Thai fonts if they are missing
+    const fontLink = $('link[href*="fonts.googleapis.com/css2"]');
+    if (fontLink) { try { await cache.add(new Request(fontLink.href, { mode: "no-cors" })); } catch (e) { /* fonts optional */ } }
+    const items = eventItems(eventId);
+    const songs = items.filter(i => !isBreak(i)).map(i => Store.songs.get(i.songId)).filter(Boolean);
+    const missing = items.filter(i => !isBreak(i) && !Store.songs.has(i.songId)).length;
+    const pack = { event: ev, items, songs, at: now() };
+    localStorage.setItem("chordscroll-offline-pack:" + eventId, JSON.stringify(pack));
+    const appOk = !!(await cache.match("./"));
+    if (!appOk) throw new Error("app not cached");
+    prefs.set("offline:" + eventId, { at: now(), stamp: eventStamp(eventId), songs: songs.length });
+    toast(missing ? `เตรียมแล้ว แต่มี ${missing} เพลงที่ถูกลบจากคลัง` : `พร้อมเล่นออฟไลน์แล้ว: แอปและ ${songs.length} เพลงอยู่ในเครื่องนี้`, 6000);
+    notify("offline");
+    return true;
+  } catch (e) {
+    toast("เตรียมออฟไลน์ไม่สำเร็จ: " + (/quota/i.test(String(e && e.name)) ? "พื้นที่เครื่องเต็ม" : "ลองใหม่ขณะมีเน็ต"), 6000);
+    return false;
+  }
+}
+/** Packs saved for offline use, for a store that cannot reach its server (used by the Supabase connector). */
+function offlinePacks() {
+  const out = [];
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith("chordscroll-offline-pack:")) out.push(JSON.parse(localStorage.getItem(k)));
+    }
+  } catch (e) { /* storage blocked */ }
+  return out;
+}
+registerSW();
 
 /* ---------- routing ----------
    #                      gigs           #library        song library     #data   members & backup

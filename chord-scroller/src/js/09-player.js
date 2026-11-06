@@ -45,8 +45,9 @@ function playerContext(kind, a, b) {
   if (kind === "event") {
     const ev = Store.events.get(a), item = Store.items.get(b);
     if (!ev || !item) return null;
-    const list = eventItems(a);
-    return { kind, event: ev, item, song: Store.songs.get(item.songId), list, index: list.findIndex(i => i.id === b) };
+    if (isBreak(item)) return null;
+    const full = eventItems(a), list = full.filter(i => !isBreak(i));
+    return { kind, event: ev, item, song: Store.songs.get(item.songId), list, full, index: list.findIndex(i => i.id === b) };
   }
   const song = Store.songs.get(a);
   return song ? { kind: "song", song, event: null, item: null, list: [], index: -1 } : null;
@@ -75,7 +76,7 @@ function renderPlayer(kind, a, b) {
     P.ctx = ctx;
     if (itemChanged) { const st = settingsFrom(ctx); P.bpm = st.bpm; P.shift = st.shift; P.capo = st.capo; P.itemSig = itemSig(ctx.item); }
     if (songChanged) { P.songRev = ctx.song.rev || 0; P.parts = analyse(ctx.song.blocks); rebuildSheet(); toast("เนื้อเพลงนี้เพิ่งถูกแก้ไข แสดงฉบับล่าสุดแล้ว"); }
-    else if (itemChanged) { rebuildSheet(); toast("ค่าของเพลงในงานนี้ถูกเปลี่ยนจากอีกเครื่อง"); }
+    else if (itemChanged) { rebuildSheet(); toast("ใช้ค่าล่าสุดของเพลงนี้ในงานแล้ว"); }
     refreshPlayerChrome();
     return;
   }
@@ -133,6 +134,7 @@ function renderPlayer(kind, a, b) {
         <button id="capo-down" type="button" aria-label="ลดคาโป้">−</button><span class="val" id="capo"></span><button id="capo-up" type="button" aria-label="เพิ่มคาโป้">+</button></div>
       <div class="stepper" role="group" aria-label="ขนาดตัวหนังสือ" style="grid-template-columns:auto 34px 34px;gap:6px"><span class="cap" style="grid-column:auto">ตัวอักษร</span>
         <button id="fs-down" type="button" aria-label="ตัวหนังสือเล็กลง" style="font-size:14px">A−</button><button id="fs-up" type="button" aria-label="ตัวหนังสือใหญ่ขึ้น" style="font-size:14px">A+</button></div>
+      <button class="btn ghost" type="button" id="reset" style="min-height:36px;padding:0 10px">คืนค่าเดิม</button>
       ${syncPill()}
       <span class="saved-note" id="saved-note" style="flex-basis:100%"></span>
     </div>
@@ -188,7 +190,7 @@ function queueSave(patch) {
 async function flushSave() {
   const ctx = P.ctx, patch = P.pendingSave; P.pendingSave = null;
   if (!ctx || !patch) return;
-  if (ctx.item) { await patchItem(ctx.item.id, patch); P.itemSig = itemSig({ ...ctx.item, ...patch }); }
+  if (ctx.item) { P.itemSig = itemSig({ ...ctx.item, ...patch }); await patchItem(ctx.item.id, patch); }
   else if ("bpm" in patch) await patchSong(ctx.song.id, { bpm: patch.bpm });
 }
 
@@ -231,6 +233,13 @@ function nextSectionName(k) {
   return "";
 }
 function nextSongItem() { const c = P.ctx; return c && c.event ? c.list[c.index + 1] : null; }
+/** Breaks planned between this song and the next one, e.g. "พัก 15 นาที". */
+function breakAfter() {
+  const c = P.ctx; if (!c || !c.full) return "";
+  const i = c.full.findIndex(x => x.id === c.item.id); const out = [];
+  for (let j = i + 1; j < c.full.length && isBreak(c.full[j]); j++) out.push(`${c.full[j].label || "พัก"} ${c.full[j].minutes} นาที`);
+  return out.join(", ");
+}
 function paint() {
   if (!pActive() || !P.rows.length) return;
   if (P.cur !== P.paintedCur) {
@@ -243,7 +252,8 @@ function paint() {
     const s = $(`.sec[data-sec="${p}"]`); if (s) s.classList.add("on");
     $("#now-sec").textContent = (P.parts[p] && P.parts[p].name) || "";
     const nx = nextSectionName(P.cur), ns = nextSongItem(), nsong = ns && Store.songs.get(ns.songId);
-    $("#next-sec").innerHTML = nx ? `ต่อไป <b>${esc(nx)}</b>` : nsong ? `ท่อนสุดท้าย · เพลงถัดไป <b>${esc(nsong.title)}</b>` : "ท่อนสุดท้าย";
+    const brk = breakAfter();
+    $("#next-sec").innerHTML = nx ? `ต่อไป <b>${esc(nx)}</b>` : brk ? `ท่อนสุดท้าย · แล้ว<b>${esc(brk)}</b>` : nsong ? `ท่อนสุดท้าย · เพลงถัดไป <b>${esc(nsong.title)}</b>` : "ท่อนสุดท้าย";
     P.paintedSec = p;
   }
   const d = rowDur(P.cur);
@@ -256,7 +266,8 @@ function paint() {
   const card = $("#next-card");
   if (card) {
     const ns = nextSongItem(), nsong = ns && Store.songs.get(ns.songId);
-    const html = P.ended ? (ns ? `<div class="next-card"><span>จบเพลง · ถัดไป <b>${esc(nsong ? nsong.title : "เพลงถูกลบ")}</b></span><a class="btn primary" href="#play-${P.ctx.event.id}-${ns.id}">เพลงถัดไป ${ICON.next}</a></div>`
+    const brk = breakAfter();
+    const html = P.ended ? (ns ? `<div class="next-card"><span>จบเพลง${brk ? ` · <b>${esc(brk)}</b> แล้ว` : " ·"} ถัดไป <b>${esc(nsong ? nsong.title : "เพลงถูกลบ")}</b></span><a class="btn primary" href="#play-${P.ctx.event.id}-${ns.id}">เพลงถัดไป ${ICON.next}</a></div>`
       : `<div class="next-card"><span>${P.ctx.event ? "จบเพลงสุดท้ายของงาน" : "จบเพลง"}</span><a class="btn" href="${P.ctx.event ? "#event-" + P.ctx.event.id : "#library"}">กลับ</a></div>`) : "";
     if (card.innerHTML !== html) card.innerHTML = html;
   }
@@ -307,6 +318,21 @@ function setFont(v) {
   document.documentElement.style.setProperty("--scale", fontScale);
   measure(); scrollToRow(P.cur, true);
 }
+/** Back to the song's own key, no capo and the song's BPM. In a gig this is saved to the gig row and can be undone. */
+async function resetSettings() {
+  const ctx = P.ctx; if (!ctx) return;
+  const before = { shift: P.shift, capo: P.capo, bpm: P.bpm };
+  P.shift = 0; P.capo = 0; P.bpm = validBpm(ctx.song.bpm) ? ctx.song.bpm : 80;
+  rebuildSheet(); retime(); refreshPlayerChrome();
+  if (ctx.item && writable()) {
+    clearTimeout(P.saveTimer); P.pendingSave = null;
+    P.itemSig = itemSig({ ...ctx.item, shift: 0, capo: 0, bpm: null });   // our own change: don't announce it as someone else's
+    await patchItemUndoable(ctx.item.id, { shift: 0, capo: 0, bpm: null }, "คืนคีย์ คาโป้ และ BPM เป็นค่าของเพลงแล้ว");
+  } else {
+    if (!ctx.item) prefs.set("lib:" + ctx.song.id, {});
+    toast("คืนค่าเดิมแล้ว", 6000, { text: "ย้อนกลับ", run: () => { P.shift = before.shift; P.capo = before.capo; P.bpm = before.bpm; rebuildSheet(); retime(); refreshPlayerChrome(); if (!ctx.item) prefs.set("lib:" + ctx.song.id, { shift: before.shift, capo: before.capo }); } });
+  }
+}
 function toggleStage() {
   const on = !document.body.classList.contains("stage");
   document.body.classList.toggle("stage", on); prefs.set("stage", on);
@@ -329,6 +355,7 @@ function wirePlayer() {
   $("#fs-down").onclick = () => setFont(fontScale - 0.1);
   $("#fs-up").onclick = () => setFont(fontScale + 0.1);
   $("#stage").onclick = toggleStage;
+  $("#reset").onclick = resetSettings;
   const seek = $("#seek");
   seek.addEventListener("input", () => { P.dragging = true; seekTo(P.total * seek.value / 1000); });
   seek.addEventListener("change", () => { P.dragging = false; });

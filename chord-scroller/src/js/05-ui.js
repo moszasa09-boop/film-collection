@@ -1,10 +1,16 @@
 /* ---------- shell: header, status pill, toasts, dialogs ---------- */
 const app = document.getElementById("app");
 let toastTimer = 0;
-function toast(msg, ms = 3200) {
+function toast(msg, ms = 3200, action) {
   let el = $(".toast");
   if (!el) { el = document.createElement("div"); el.className = "toast"; el.setAttribute("role", "status"); document.body.appendChild(el); }
   el.textContent = msg;
+  if (action) {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "toast-act"; b.textContent = action.text;
+    b.onclick = () => { el.remove(); action.run(); };
+    el.appendChild(b);
+  }
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => el.remove(), ms);
 }

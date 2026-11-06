@@ -71,6 +71,10 @@ def build(artifact):
                 'body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>\n</head>\n<body>\n' + page + '\n</body>\n</html>\n')
     with open(out, "w", encoding="utf-8") as fh:
         fh.write(html)
+    if not artifact:
+        sw = open(os.path.join(SRC, "sw.js"), encoding="utf-8").read().replace("__VERSION__", hashlib.sha1(html.encode("utf-8")).hexdigest()[:12])
+        with open(os.path.join(HERE, "sw.js"), "w", encoding="utf-8") as fh:
+            fh.write(sw)
     b = load_builtin()
     print(f"{len(b['events'])} starter gig(s), {len(b['songs'])} songs -> {out} ({len(html) // 1024} KB)")
 

@@ -84,22 +84,34 @@ function eventItems(eventId) {
 }
 const setItems = (eventId, setId) => eventItems(eventId).filter(i => i.setId === setId);
 const itemBpm = (item, song) => validBpm(item && item.bpm) ? item.bpm : validBpm(song && song.bpm) ? song.bpm : 80;
-function itemSeconds(item) { const s = Store.songs.get(item.songId); return s ? songSeconds(s.blocks, itemBpm(item, s)) : 0; }
+const validDur = v => Number.isInteger(v) && v >= 10 && v <= 3600;
+const isBreak = it => it && it.kind === "break";
+/** Seconds this row takes in the show: a break's minutes, a typed real length, or the estimate from BPM. */
+function itemSecs(it) {
+  if (isBreak(it)) return clamp(Number(it.minutes) || 0, 0, 240) * 60;
+  if (validDur(it.durationSec)) return it.durationSec;
+  const s = Store.songs.get(it.songId);
+  return s ? songSeconds(s.blocks, itemBpm(it, s)) : 0;
+}
 function usageOf(songId) {
   const out = new Map();
   for (const it of Store.items.values()) if (it.songId === songId) out.set(it.eventId, (out.get(it.eventId) || 0) + 1);
   return out;
 }
-function summarize(items) {
-  let secs = 0, ready = 0, checked = 0, missing = 0;
+/** Totals for a list of rows: songs, breaks, the gap between songs, readiness. */
+function summarize(items, ev) {
+  let songSecs = 0, breakSecs = 0, ready = 0, checked = 0, missing = 0, count = 0;
   for (const it of items) {
+    if (isBreak(it)) { breakSecs += itemSecs(it); continue; }
+    count++;
     const s = Store.songs.get(it.songId);
     if (!s) { missing++; continue; }
-    secs += songSeconds(s.blocks, itemBpm(it, s));
+    songSecs += itemSecs(it);
     if (songStats(s).ready) ready++;
     if (s.musicCheck === "checked") checked++;
   }
-  return { count: items.length, secs, ready, checked, missing };
+  const gapSecs = ev && ev.gapSeconds > 0 ? Math.max(0, count - 1) * ev.gapSeconds : 0;
+  return { count, secs: songSecs + breakSecs + gapSecs, songSecs, breakSecs, gapSecs, ready, checked, missing };
 }
 
 /* ---------- saving ----------
@@ -190,6 +202,8 @@ async function saveSong(song, baseRev, { force = false } = {}) {
       if (theirRev !== baseRev) return { conflict: { ...cur.data(), id } };
     }
     rev = Math.max(baseRev, cur && cur.exists ? (cur.data().rev || 0) : 0) + 1;
+    const before = cur && cur.exists ? { ...cur.data(), id } : Store.songs.get(id);
+    if (before) await keepHistory("song", id, before, "edit");
   }
   const body = songBody({ ...song, id }, rev);
   const ok = await track("บันทึกเพลง “" + body.title + "”", () => ref.set(body));
@@ -201,12 +215,14 @@ async function patchSong(id, patch) {
 }
 async function deleteSong(id, removeItems) {
   const items = [...Store.items.values()].filter(i => i.songId === id);
+  const before = Store.songs.get(id);
+  if (before) await keepHistory("song", id, before, "delete", { items: removeItems ? items : [] });
   if (removeItems) for (const it of items) await track("เอาเพลงออกจากงาน", () => Store.db.doc("items/" + it.id).delete());
   return track("ลบเพลง", () => Store.db.doc("songs/" + id).delete());
 }
 
 /* ---------- events, sets, items ---------- */
-const EVENT_FIELDS = ["name", "date", "venue", "note", "slotMinutes"];
+const EVENT_FIELDS = ["name", "date", "venue", "note", "slotMinutes", "gapSeconds"];
 async function createEvent(fields) {
   const id = newId();
   const body = { ...pick(fields, EVENT_FIELDS), sets: fields.sets || [{ id: newId(), name: "เซ็ตหลัก" }], createdAt: now(), updatedAt: now(), updatedBy: Store.me.id || null, setsRev: 1 };
@@ -230,6 +246,8 @@ async function changeSets(eventId, mutate) {
   return track("บันทึกเซ็ต", () => ref.update({ sets, setsRev: (data.setsRev || 0) + 1, updatedAt: now(), updatedBy: Store.me.id || null }));
 }
 async function deleteEvent(id) {
+  const before = Store.events.get(id);
+  if (before) await keepHistory("event", id, before, "delete", { items: eventItems(id) });
   for (const it of eventItems(id)) await track("ลบรายการเพลง", () => Store.db.doc("items/" + it.id).delete());
   return track("ลบงาน", () => Store.db.doc("events/" + id).delete());
 }
@@ -243,15 +261,20 @@ async function duplicateEvent(id) {
   }
   return nid;
 }
-const ITEM_FIELDS = ["eventId", "setId", "songId", "order", "shift", "capo", "bpm", "singer", "note"];
+const ITEM_FIELDS = ["eventId", "setId", "songId", "order", "shift", "capo", "bpm", "singer", "note", "kind", "minutes", "label", "durationSec"];
 async function addItems(eventId, setId, songIds) {
   let order = Math.max(0, ...setItems(eventId, setId).map(i => i.order || 0));
   let ok = true;
+  const created = [];
   for (const songId of songIds) {
     order += 1000;
+    const id = newId();
     const body = { eventId, setId, songId, order, shift: 0, capo: 0, bpm: null, singer: "", note: "", updatedAt: now(), updatedBy: Store.me.id || null };
-    ok = (await track("เพิ่มเพลงเข้าเซ็ต", () => Store.db.doc("items/" + newId()).set(body))) && ok;
+    const done = await track("เพิ่มเพลงเข้าเซ็ต", () => Store.db.doc("items/" + id).set(body));
+    if (done) created.push(id);
+    ok = done && ok;
   }
+  if (created.length) pushUndo(`เพิ่ม ${created.length} เพลงแล้ว`, async () => { let r = true; for (const id of created) r = (await removeItem(id)) && r; return r; });
   return ok;
 }
 async function patchItem(id, patch) {
@@ -295,5 +318,117 @@ async function seedBuiltin(quiet) {
       ok = (await track("นำเข้ารายการเพลง", () => Store.db.doc("items/" + it.id).set(ib))) && ok;
     }
   }
+  return ok;
+}
+
+/* ---------- history, trash, restore ----------
+   Before a song is overwritten or a song/gig is deleted, its previous state is copied to history/{id}
+   (with the gig rows it took along). The last 30 versions per song are kept. Restoring writes the old
+   state back as a new revision, so restoring is itself undoable. */
+const HISTORY_KEEP = 30;
+const plain = o => { const r = JSON.parse(JSON.stringify(o || {})); delete r.id; return r; };
+async function keepHistory(kind, refId, data, action, extra) {
+  const body = { kind, refId, action, rev: (data && data.rev) || 0, title: (data && (data.title || data.name)) || "", data: plain(data),
+    extra: extra ? { items: (extra.items || []).map(i => ({ ...plain(i), id: i.id })) } : null, at: now(), by: Store.me.id || null };
+  const ok = await track("เก็บประวัติ", () => Store.db.doc("history/" + newId()).set(body));
+  if (ok) pruneHistory(kind, refId);
+  return ok;
+}
+async function historyList(filter) {
+  try {
+    const snap = await withTimeout(Store.db.collection("history").get(), 8000);
+    return snap.docs.map(d => ({ ...d.data(), id: d.id })).filter(filter || (() => true)).sort((a, b) => b.at - a.at);
+  } catch (e) { toast("โหลดประวัติไม่ได้: " + errText(e)); return null; }
+}
+async function pruneHistory(kind, refId) {
+  const list = await historyList(h => h.kind === kind && h.refId === refId && h.action === "edit");
+  if (!list) return;
+  for (const h of list.slice(HISTORY_KEEP)) await track("ล้างประวัติเก่า", () => Store.db.doc("history/" + h.id).delete());
+}
+/** Deleted songs and gigs that are not back yet, newest first. */
+async function trashList() {
+  const list = await historyList(h => h.action === "delete");
+  if (!list) return null;
+  const seen = new Set();
+  return list.filter(h => {
+    const key = h.kind + ":" + h.refId;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return !(h.kind === "song" ? Store.songs.has(h.refId) : Store.events.has(h.refId));
+  });
+}
+async function restoreHistory(h) {
+  if (h.kind === "song") {
+    const cur = Store.songs.get(h.refId);
+    if (cur) {
+      const r = await saveSong({ ...h.data, id: h.refId, createdAt: cur.createdAt }, cur.rev || 0, { force: true });
+      return !!(r && r.ok);
+    }
+    const body = { ...h.data, rev: (h.rev || 0) + 1, updatedAt: now(), updatedBy: Store.me.id || null };
+    let ok = await track("กู้เพลง " + (h.title || ""), () => Store.db.doc("songs/" + h.refId).set(body));
+    for (const it of (h.extra && h.extra.items) || []) {
+      if (!Store.events.has(it.eventId) || Store.items.has(it.id)) continue;
+      const { id, ...ib } = it;
+      ok = (await track("คืนเพลงเข้างาน", () => Store.db.doc("items/" + id).set(ib))) && ok;
+    }
+    return ok;
+  }
+  const body = { ...h.data, updatedAt: now(), updatedBy: Store.me.id || null };
+  let ok = await track("กู้งาน " + (h.title || ""), () => Store.db.doc("events/" + h.refId).set(body));
+  for (const it of (h.extra && h.extra.items) || []) {
+    if (Store.items.has(it.id) || (!isBreak(it) && !Store.songs.has(it.songId))) continue;
+    const { id, ...ib } = it;
+    ok = (await track("คืนรายการเพลง", () => Store.db.doc("items/" + id).set(ib))) && ok;
+  }
+  return ok;
+}
+async function purgeHistory(h) {
+  const all = await historyList(x => x.kind === h.kind && x.refId === h.refId);
+  for (const x of all || []) await track("ลบถาวร", () => Store.db.doc("history/" + x.id).delete());
+}
+
+/* ---------- undo for gig edits ----------
+   Reordering, moving, adding, removing and resetting rows push an undo step. The toast offers
+   “ย้อนกลับ”, and Ctrl/⌘+Z on the gig page undoes the latest step. */
+const undoStack = [];
+function pushUndo(label, revert) {
+  undoStack.push({ label, revert, at: now() });
+  if (undoStack.length > 30) undoStack.shift();
+  toast(label, 8000, { text: "ย้อนกลับ", run: undoLast });
+}
+async function undoLast() {
+  const u = undoStack.pop();
+  if (!u) { toast("ไม่มีอะไรให้ย้อนกลับ"); return; }
+  const ok = await u.revert();
+  toast(ok === false ? "ย้อนกลับไม่สำเร็จ ดูที่ปุ่มสถานะ" : "ย้อนกลับแล้ว: " + u.label);
+}
+const rowState = it => ({ setId: it.setId, order: it.order });
+async function moveItemUndoable(itemId, eventId, setId, beforeId, label = "ย้ายเพลงแล้ว") {
+  const it = Store.items.get(itemId); if (!it) return false;
+  const before = rowState(it);
+  const ok = await moveItem(itemId, eventId, setId, beforeId);
+  if (ok) pushUndo(label, () => patchItem(itemId, before));
+  return ok;
+}
+async function patchItemUndoable(itemId, patch, label = "บันทึกแล้ว") {
+  const it = Store.items.get(itemId); if (!it) return false;
+  const before = {};
+  for (const k of Object.keys(patch)) before[k] = it[k] === undefined ? null : it[k];
+  const ok = await patchItem(itemId, patch);
+  if (ok) pushUndo(label, () => patchItem(itemId, before));
+  return ok;
+}
+async function removeItemUndoable(itemId) {
+  const it = Store.items.get(itemId); if (!it) return false;
+  const { id, ...body } = it;
+  const ok = await removeItem(itemId);
+  if (ok) pushUndo("เอาออกจากเซ็ตแล้ว", () => track("คืนเพลงเข้าเซ็ต", () => Store.db.doc("items/" + id).set(body)));
+  return ok;
+}
+async function addBreak(eventId, setId, minutes, label) {
+  const order = Math.max(0, ...setItems(eventId, setId).map(i => i.order || 0)) + 1000;
+  const id = newId();
+  const ok = await track("เพิ่มช่วงพัก", () => Store.db.doc("items/" + id).set({ eventId, setId, kind: "break", minutes, label: label || "พัก", order, updatedAt: now(), updatedBy: Store.me.id || null }));
+  if (ok) pushUndo("เพิ่มช่วงพักแล้ว", () => removeItem(id));
   return ok;
 }
