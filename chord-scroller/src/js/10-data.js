@@ -36,11 +36,8 @@ async function renderData() {
       <li>เจ้าของเปลี่ยนสิทธิ์หรือเอาสมาชิกออกได้ทุกเมื่อ</li></ol>
       <p class="small muted">แต่ละคนใช้บัญชีของตัวเอง ข้อมูลในเครื่องแยกตามบัญชี · ทุกการแก้ไขและการลบเก็บประวัติไว้ที่เซิร์ฟเวอร์</p>`
     : Store.mode === "device" ? `
-      <p>ลิงก์นี้เปิดได้ทุกคน แต่ข้อมูลของแต่ละคนเก็บในเครื่องของคนนั้น ไม่ซิงก์กัน วิธีส่งงานให้สมาชิก:</p>
-      <ol><li>กด “ดาวน์โหลดไฟล์สำรอง” ด้านล่าง แล้วส่งไฟล์ให้สมาชิก (LINE, อีเมล)</li>
-      <li>สมาชิกเปิดลิงก์เดียวกัน ไปที่หน้านี้ แล้วกด “นำเข้าจากไฟล์” เลือก “รวมกับข้อมูลเดิม”</li>
-      <li>ถ้าแก้งานทีหลัง ต้องส่งไฟล์ใหม่อีกครั้ง</li></ol>
-      <p class="small muted">ถ้าต้องการให้ทั้งวงเห็นข้อมูลชุดเดียวกันแบบอัตโนมัติ ใช้ลิงก์ claude.ai ของเจ้าของ หรือเชื่อมฐานข้อมูลภายนอก (ดูเอกสารใน repo)</p>`
+      <p>ลิงก์นี้เปิดได้ทุกคน ทุกเครื่องดึง “ฉบับของวง” ที่เผยแพร่ไว้บนเว็บมาเอง จึงเห็นงานและเพลงเหมือนกัน (ดู “เผยแพร่ให้ทั้งวงเห็น” ด้านล่าง)</p>
+      <p class="small muted">การแก้ในเครื่องใครเครื่องมัน จะยังไม่ไปถึงคนอื่นจนกว่าจะเผยแพร่ฉบับใหม่ ถ้าต้องการให้ทุกคนแก้ได้และเห็นกันทันที ต้องเปิดการซิงก์วงผ่าน Supabase</p>`
     : `
       <p>ทุกคนที่เปิดลิงก์ claude.ai นี้เห็นงาน เซ็ต และเพลงชุดเดียวกัน แก้แล้วเห็นตรงกันทันที เจ้าของเป็นคนแชร์:</p>
       <ol><li>เจ้าของกดปุ่ม <b>Share</b> ของหน้านี้บน claude.ai</li>
@@ -52,6 +49,7 @@ async function renderData() {
     <p class="small muted" style="margin:0 0 6px">เพลงและงานที่ถูกลบ กู้คืนได้พร้อมตำแหน่งในเซ็ตเดิม</p>
     <div id="trash"><p class="small muted">กำลังโหลด…</p></div>
 
+    ${publishSectionHTML()}
     <h2 class="section-title">สำรองข้อมูล</h2>
     <p style="margin:0 0 8px">ไฟล์เดียวมีเพลง งาน เซ็ต และค่าของแต่ละเพลงในงานครบ เก็บไว้กู้คืนหรือย้ายไปเครื่องอื่นได้</p>
     <div class="row"><button class="btn primary" id="bk-save" type="button">ดาวน์โหลดไฟล์สำรอง</button><button class="btn" id="bk-show" type="button">แสดงเป็นข้อความเพื่อคัดลอก</button></div>
@@ -65,6 +63,7 @@ async function renderData() {
   </main>`;
   $("#bk-save").onclick = saveBackupFile;
   drawTrash();
+  wirePublishSection();
   if (cloudConfigured()) drawCloudBox();
   $("#bk-show").onclick = () => {
     const txt = JSON.stringify(makeBackup(), null, 1);
@@ -177,14 +176,20 @@ function previewRestore(raw) {
     });
   }, { label: "นำเข้าไฟล์สำรอง" });
 }
-async function applyRestore(r, replace) {
-  const out = $("#rs-out");
-  let done = 0, failed = 0;
+async function applyRestore(r, replace, { quiet = false } = {}) {
+  const out = quiet ? null : $("#rs-out");
+  let done = 0, failed = 0, changed = 0;
   const total = r.songs.length + r.events.length + r.items.length;
-  const step = async (label, fn) => { const ok = await track(label, fn); ok ? done++ : failed++; if (out) out.innerHTML = `<p class="progress"><span class="spinner"></span> นำเข้าแล้ว ${done}/${total}${failed ? ` · ไม่สำเร็จ ${failed}` : ""}</p>`; };
-  for (const s of r.songs) { const { id, ...body } = s; await step("นำเข้าเพลง " + s.title, () => Store.db.doc("songs/" + id).set(body)); }
-  for (const ev of r.events) { const { id, ...body } = ev; await step("นำเข้างาน " + ev.name, () => Store.db.doc("events/" + id).set(body)); }
-  for (const it of r.items) { const { id, ...body } = it; await step("นำเข้ารายการเพลง", () => Store.db.doc("items/" + id).set(body)); }
+  const same = (c, id, body) => { const cur = Store[c].get(id); if (!cur) return false; const { id: _, ...b } = cur; return JSON.stringify(sortKeys(b)) === JSON.stringify(sortKeys(body)); };
+  const step = async (c, label, id, body) => {
+    if (same(c, id, body)) { done++; return; }   // already identical: no write needed
+    const ok = await track(label, () => Store.db.doc(c + "/" + id).set(body));
+    if (ok) { done++; changed++; } else failed++;
+    if (out) out.innerHTML = `<p class="progress"><span class="spinner"></span> นำเข้าแล้ว ${done}/${total}${failed ? ` · ไม่สำเร็จ ${failed}` : ""}</p>`;
+  };
+  for (const s of r.songs) { const { id, ...body } = s; await step("songs", "นำเข้าเพลง " + s.title, id, body); }
+  for (const ev of r.events) { const { id, ...body } = ev; await step("events", "นำเข้างาน " + ev.name, id, body); }
+  for (const it of r.items) { const { id, ...body } = it; await step("items", "นำเข้ารายการเพลง", id, body); }
   let removed = 0;
   if (replace && !failed) {
     const keep = { songs: new Set([...r.songs.map(x => x.id), ...r.skipped.songs]), events: new Set([...r.events.map(x => x.id), ...r.skipped.events]), items: new Set([...r.items.map(x => x.id), ...r.skipped.items]) };
@@ -195,7 +200,13 @@ async function applyRestore(r, replace) {
   const msg = failed ? `นำเข้าได้ ${done}/${total} รายการ ไม่สำเร็จ ${failed} (ดูที่ปุ่มสถานะเพื่อลองใหม่)${replace ? " · ยังไม่ได้ลบรายการเดิม เพราะนำเข้าไม่ครบ" : ""}`
     : `นำเข้าครบ ${done} รายการ${replace ? ` · ลบรายการที่ไม่มีในไฟล์ ${removed} รายการ` : ""}`;
   if (out) out.innerHTML = `<div class="banner ${failed ? "bad" : "info"}"><span class="grow">${esc(msg)}</span></div>`;
-  toast(msg, 6000);
+  if (!quiet) toast(msg, 6000);
+  return { done, failed, changed, removed };
+}
+function sortKeys(o) {
+  if (Array.isArray(o)) return o.map(sortKeys);
+  if (o && typeof o === "object") return Object.keys(o).sort().reduce((a, k) => (a[k] = sortKeys(o[k]), a), {});
+  return o;
 }
 
 async function drawTrash() {

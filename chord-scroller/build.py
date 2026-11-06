@@ -78,7 +78,11 @@ def build(artifact):
     if cloud:
         with open(os.path.join(HERE, "vendor", "supabase-js-2.119.0.umd.js"), encoding="utf-8") as fh:
             vendor = "<script>\n" + fh.read().replace("</script", "<\\/script") + "\n</script>"
-    page = page.replace("/*__VENDOR__*/", vendor).replace("/*__CLOUD__*/", json.dumps(cloud))
+    publish = None
+    if not artifact and os.path.exists(os.path.join(HERE, "publish.json")):
+        with open(os.path.join(HERE, "publish.json"), encoding="utf-8") as fh:
+            publish = json.load(fh)
+    page = page.replace("/*__VENDOR__*/", vendor).replace("/*__CLOUD__*/", json.dumps(cloud)).replace("/*__PUBLISH__*/", json.dumps(publish))
     page = page.replace("/*__CSS__*/", css).replace("/*__BUILTIN__*/", builtin).replace("/*__JS__*/", js)
     if artifact:
         out, html = os.path.join(HERE, "chords.html"), page

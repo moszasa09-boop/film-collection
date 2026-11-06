@@ -85,5 +85,5 @@ Store.listeners.add(what => {
 
 /* ---------- start ---------- */
 app.innerHTML = header({ title: "คอร์ดเลื่อนตามเพลง" }) + `<main class="wrap"><p class="empty">กำลังโหลด…</p></main>`;
-initStore().then(() => route(), e => { console.error(e); route(); });
+initStore().then(() => { route(); syncPublished(); }, e => { console.error(e); route(); });
 window.ChordApp = { textToBlocks, blocksToText, convertChordsAbove, validateSong, tr, keyOf, isChord, analyse, songSeconds, songStats, checkBackup, Store, P, Sync };
