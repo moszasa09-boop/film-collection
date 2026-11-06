@@ -1,0 +1,44 @@
+PASS [sign-in] before signing in, the app works on this device with the starter songs
+PASS [sign-in] offers to sign in to work with the band
+PASS [sign-in] signed in without a band: asks to create one or use an invite
+PASS [sign-in] offers to bring this device’s songs into the new band
+PASS [sign-in] now working on the band as its owner
+PASS [sign-in] this device’s 12 songs and the ITD gig were copied up (25 documents)
+PASS [sign-in] status says synced with the band
+PASS [sign-in] one editor link and one viewer link
+PASS [sign-in] owner sees the active links with copy and cancel
+PASS [join] editor is in the band and sees the 12 songs and the gig
+PASS [join] the invite code is removed from the address bar
+PASS [join] viewer is in the band and sees the songs
+PASS [join] viewer is told they can only view
+PASS [join] viewer has no create button
+PASS [sync] owner’s change appears live on the editor’s and viewer’s phones
+PASS [sync] editor’s new gig appears for the owner
+PASS [sync] two people editing different settings of one song at the same time: both kept
+PASS [sync] the later save is stopped and asks what to keep
+PASS [sync] both versions are kept on the server, nothing lost
+PASS [sync] the server audit trail kept the version before the change
+PASS [offline] status shows the write is waiting: กำลังส่ง 1 รายการ…
+PASS [offline] not on the server yet
+PASS [offline] but already shown on this phone
+PASS [offline] after reloading online, the waiting write reached the server
+PASS [offline] and the owner sees it
+PASS [offline] gig prepared for offline: พร้อมเล่นออฟไลน์แล้ว: แอปและ 12 เพลงอยู่ในเครื่องนี้
+PASS [offline] band data comes from this phone’s copy
+PASS [offline] status says offline
+PASS [offline] a song plays offline
+PASS [roles] viewer’s writes are refused by the server
+PASS [roles] owner promoted the viewer to editor
+PASS [roles] removed member no longer gets the band’s data
+PASS [roles] and is told they are not in a band
+PASS [roles] the band’s data cached on the removed member’s phone is deleted
+PASS [roles] the last owner cannot step down
+PASS [pictures] both pictures went to the band’s reader in one request
+PASS [pictures] result fills the editor with the unclear spots marked
+PASS [pictures] saved to the band as not yet checked
+PASS [accounts] after signing out the page shows only this device’s own data, not the band’s
+PASS [accounts] and offers to sign in again
+PASS [accounts] no copy of the band’s data is left in this browser
+PASS [accounts] no script errors: 
+
+ALL 42 PASSED

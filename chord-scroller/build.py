@@ -54,29 +54,48 @@ def load_builtin():
     return {"songs": songs, "events": events, "items": items}
 
 
+def arg(name):
+    """Value after a command-line flag, e.g. --out file.html (used by the tests)."""
+    return sys.argv[sys.argv.index(name) + 1] if name in sys.argv and sys.argv.index(name) + 1 < len(sys.argv) else None
+
+
 def build(artifact):
     css = open(os.path.join(SRC, "style.css"), encoding="utf-8").read()
     js_dir = os.path.join(SRC, "js")
     js = "\n".join(open(os.path.join(js_dir, f), encoding="utf-8").read() for f in sorted(os.listdir(js_dir)) if f.endswith(".js"))
     builtin = json.dumps(load_builtin(), ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
     page = open(os.path.join(SRC, "page.html"), encoding="utf-8").read()
+    # Supabase (band sync on the public link): only when cloud.json gives a project, and never in the
+    # claude.ai build, which has its own shared database.
+    cloud = None
+    cloud_path = arg("--cloud") or os.path.join(HERE, "cloud.json")
+    if not artifact and os.path.exists(cloud_path):
+        with open(cloud_path, encoding="utf-8") as fh:
+            cfg = json.load(fh)
+        if cfg.get("url") and cfg.get("anonKey"):
+            cloud = {"url": cfg["url"].rstrip("/"), "anonKey": cfg["anonKey"]}
+    vendor = ""
+    if cloud:
+        with open(os.path.join(HERE, "vendor", "supabase-js-2.119.0.umd.js"), encoding="utf-8") as fh:
+            vendor = "<script>\n" + fh.read().replace("</script", "<\\/script") + "\n</script>"
+    page = page.replace("/*__VENDOR__*/", vendor).replace("/*__CLOUD__*/", json.dumps(cloud))
     page = page.replace("/*__CSS__*/", css).replace("/*__BUILTIN__*/", builtin).replace("/*__JS__*/", js)
     if artifact:
         out, html = os.path.join(HERE, "chords.html"), page
     else:
-        out = os.path.join(HERE, "index.html")
+        out = arg("--out") or os.path.join(HERE, "index.html")
         html = ('<!doctype html>\n<html lang="th">\n<head>\n<meta charset="utf-8">\n'
                 '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">\n'
                 '<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}'
                 'body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>\n</head>\n<body>\n' + page + '\n</body>\n</html>\n')
     with open(out, "w", encoding="utf-8") as fh:
         fh.write(html)
-    if not artifact:
+    if not artifact and not arg("--out"):
         sw = open(os.path.join(SRC, "sw.js"), encoding="utf-8").read().replace("__VERSION__", hashlib.sha1(html.encode("utf-8")).hexdigest()[:12])
         with open(os.path.join(HERE, "sw.js"), "w", encoding="utf-8") as fh:
             fh.write(sw)
     b = load_builtin()
-    print(f"{len(b['events'])} starter gig(s), {len(b['songs'])} songs -> {out} ({len(html) // 1024} KB)")
+    print(f"{len(b['events'])} starter gig(s), {len(b['songs'])} songs, band sync {'ON (' + cloud['url'] + ')' if cloud else 'off'} -> {out} ({len(html) // 1024} KB)")
 
 
 if __name__ == "__main__":

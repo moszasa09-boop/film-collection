@@ -1,5 +1,10 @@
 /* ---------- members, sharing, backup & restore ---------- */
 async function myRole() {
+  if (Store.mode === "cloud") return {
+    owner: { label: "เจ้าของวง", can: "แก้ไขทุกอย่าง จัดการสมาชิกและลิงก์เชิญ กู้คืนแบบแทนที่ทั้งหมดได้" },
+    editor: { label: "ผู้แก้ไข", can: "เพิ่ม แก้ไข ลบ เพลง งาน และเซ็ต อ่านคอร์ดจากรูปได้" },
+    viewer: { label: "ผู้ดู", can: "เปิดงาน เล่นเพลง และเตรียมเล่นออฟไลน์ได้ แต่แก้ไขไม่ได้" }
+  }[Cloud.role];
   if (Store.mode === "device") return { label: "ใช้งานบนเครื่องนี้", can: "เพิ่ม แก้ไข ลบ เพลงและงานได้ทั้งหมด ข้อมูลอยู่ในเบราว์เซอร์นี้เท่านั้น" };
   const me = Store.me;
   if (me.isOwner) return { label: "เจ้าของ", can: "แก้ไขทุกอย่าง สำรองและกู้คืนแบบแทนที่ทั้งหมดได้ แชร์ลิงก์ได้" };
@@ -19,11 +24,18 @@ async function renderData() {
     ${modeBanner()}
     <div class="page-head"><h1>สมาชิกและข้อมูล</h1><p>${esc(counts)}</p></div>
 
+    ${cloudConfigured() ? `<h2 class="section-title">บัญชีและวง</h2><div id="cloud-box"><p class="small muted">กำลังโหลด…</p></div>` : ""}
     <h2 class="section-title">สิทธิ์ของคุณ</h2>
     <p style="margin:0"><b>${esc(role.label)}</b> — ${esc(role.can)}</p>
 
     <h2 class="section-title">ให้สมาชิกวงเปิดงานเดียวกัน</h2>
-    ${Store.mode === "device" ? `
+    ${Store.mode === "cloud" ? `
+      <p>ทุกคนในวง “${esc(Cloud.band.name)}” เห็นงาน เซ็ต และเพลงชุดเดียวกันทุกเครื่อง แก้แล้วเห็นตรงกันทันที ไม่ต้องส่งไฟล์</p>
+      <ol><li>เจ้าของวงกด “สร้างลิงก์เชิญ” ด้านบน เลือกผู้แก้ไขหรือผู้ดู</li>
+      <li>ส่งลิงก์ให้สมาชิก (LINE, อีเมล) สมาชิกเปิดลิงก์ เข้าสู่ระบบด้วยอีเมลของตัวเอง แล้วจะเข้าวงอัตโนมัติ</li>
+      <li>เจ้าของเปลี่ยนสิทธิ์หรือเอาสมาชิกออกได้ทุกเมื่อ</li></ol>
+      <p class="small muted">แต่ละคนใช้บัญชีของตัวเอง ข้อมูลในเครื่องแยกตามบัญชี · ทุกการแก้ไขและการลบเก็บประวัติไว้ที่เซิร์ฟเวอร์</p>`
+    : Store.mode === "device" ? `
       <p>ลิงก์นี้เปิดได้ทุกคน แต่ข้อมูลของแต่ละคนเก็บในเครื่องของคนนั้น ไม่ซิงก์กัน วิธีส่งงานให้สมาชิก:</p>
       <ol><li>กด “ดาวน์โหลดไฟล์สำรอง” ด้านล่าง แล้วส่งไฟล์ให้สมาชิก (LINE, อีเมล)</li>
       <li>สมาชิกเปิดลิงก์เดียวกัน ไปที่หน้านี้ แล้วกด “นำเข้าจากไฟล์” เลือก “รวมกับข้อมูลเดิม”</li>
@@ -53,6 +65,7 @@ async function renderData() {
   </main>`;
   $("#bk-save").onclick = saveBackupFile;
   drawTrash();
+  if (cloudConfigured()) drawCloudBox();
   $("#bk-show").onclick = () => {
     const txt = JSON.stringify(makeBackup(), null, 1);
     $("#bk-out").innerHTML = `<label class="f" style="margin-top:8px"><span>ข้อความสำรอง (${Math.round(txt.length / 1024)} KB)</span><textarea id="bk-text" readonly rows="8">${esc(txt)}</textarea></label>
@@ -199,4 +212,95 @@ async function drawTrash() {
     if (u && h) { if (await restoreHistory(h)) toast(`กู้ “${h.title}” แล้ว`); drawTrash(); }
     if (p && h && await confirmDialog(`ลบ “${h.title}” ถาวร?`, "ลบประวัติทั้งหมดของรายการนี้ กู้คืนไม่ได้อีก", "ลบถาวร", true)) { await purgeHistory(h); drawTrash(); }
   };
+}
+
+/* ---------- account, band, members and invite links (Supabase) ---------- */
+async function drawCloudBox() {
+  const box = $("#cloud-box"); if (!box) return;
+  if (!Cloud.user) {
+    box.innerHTML = `<p style="margin:0 0 8px">เข้าสู่ระบบด้วยอีเมลเพื่อสร้างวง หรือเข้าวงจากลิงก์เชิญ ข้อมูลจะซิงก์ทุกเครื่องของทุกคนในวง</p>
+      <button class="btn primary" type="button" data-signin>เข้าสู่ระบบ</button>`;
+    return;
+  }
+  const email = esc(Cloud.user.email || "");
+  if (Store.mode !== "cloud") {
+    box.innerHTML = `<p style="margin:0 0 8px">เข้าสู่ระบบเป็น <b>${email}</b> แต่ยังไม่ได้อยู่ในวงไหน</p>
+      <label class="checks"><label><input type="checkbox" id="cb-copy" checked> ย้ายเพลงและงานที่อยู่ในเครื่องนี้ขึ้นวงใหม่ด้วย</label></label>
+      <div class="row" style="margin-top:8px"><button class="btn primary" type="button" id="cb-create">สร้างวง</button><button class="btn ghost" type="button" id="cb-out">ออกจากระบบ</button></div>
+      <p class="small muted">ถ้าจะเข้าวงของคนอื่น ให้เจ้าของวงส่งลิงก์เชิญมา แล้วเปิดลิงก์นั้น</p>`;
+    $("#cb-create").onclick = () => cloudCreateBand($("#cb-copy").checked);
+    $("#cb-out").onclick = cloudSignOut;
+    return;
+  }
+  const owner = Cloud.role === "owner";
+  let members = [], invites = [];
+  try { members = await cloudMembers(); invites = await cloudInvites(); }
+  catch (e) { box.innerHTML = `<p class="small muted">โหลดรายชื่อสมาชิกไม่ได้ (${esc(errText(e))}) ถ้าออฟไลน์ ต่อเน็ตแล้วเปิดหน้านี้ใหม่</p>`; return; }
+  if (!$("#cloud-box")) return;
+  box.innerHTML = `
+    <div class="row"><span>เข้าสู่ระบบเป็น <b>${email}</b></span><span class="spacer"></span><button class="btn ghost" type="button" id="cb-out">ออกจากระบบ</button></div>
+    <div class="row" style="margin-top:8px"><span>วง <b>${esc(Cloud.band.name)}</b> · คุณเป็น<b>${ROLE_TH[Cloud.role]}</b></span>
+      ${Cloud.bands.length > 1 ? `<select id="cb-switch" class="btn" aria-label="สลับวง">${Cloud.bands.map(b => `<option value="${esc(b.id)}" ${b.id === Cloud.band.id ? "selected" : ""}>${esc(b.name)}</option>`).join("")}</select>` : ""}
+      ${owner ? `<button class="btn ghost" type="button" id="cb-rename">เปลี่ยนชื่อวง</button>` : ""}
+      <button class="btn ghost" type="button" id="cb-name">ชื่อของฉันในวง</button>
+      <button class="btn ghost" type="button" id="cb-new">สร้างวงใหม่</button></div>
+    <h3 class="small" style="margin:14px 0 4px">สมาชิก ${members.length} คน</h3>
+    <div class="history-list">${members.map(m => `<div class="h"><span><b>${esc(m.display_name || "(ยังไม่ตั้งชื่อ)")}</b>${m.user_id === Cloud.user.id ? " (คุณ)" : ""} <span class="chip">${ROLE_TH[m.role]}</span></span>
+      <span class="row">${owner && m.user_id !== Cloud.user.id ? `<select class="btn" data-role="${esc(m.user_id)}" aria-label="สิทธิ์ของ ${esc(m.display_name)}">${["owner", "editor", "viewer"].map(r => `<option value="${r}" ${r === m.role ? "selected" : ""}>${ROLE_TH[r]}</option>`).join("")}</select>
+        <button class="btn ghost" type="button" data-remove="${esc(m.user_id)}">เอาออก</button>` : ""}
+        ${m.user_id === Cloud.user.id ? `<button class="btn ghost" type="button" id="cb-leave">ออกจากวง</button>` : ""}</span></div>`).join("")}</div>
+    ${owner ? `<h3 class="small" style="margin:14px 0 4px">ลิงก์เชิญ</h3>
+      <div class="row"><button class="btn" type="button" data-invite="editor">สร้างลิงก์เชิญผู้แก้ไข</button><button class="btn" type="button" data-invite="viewer">สร้างลิงก์เชิญผู้ดู</button></div>
+      <div class="history-list" style="margin-top:8px">${invites.map(i => `<div class="h"><span><span class="chip">${ROLE_TH[i.role]}</span> <span class="small muted">ใช้แล้ว ${i.uses}/${i.max_uses} · หมดอายุ ${esc(fmtDate(i.expires_at.slice(0, 10)))}</span></span>
+        <span class="row"><button class="btn ghost" type="button" data-copy="${esc(inviteUrl(i.code))}">คัดลอกลิงก์</button><button class="btn ghost" type="button" data-revoke="${esc(i.code)}">ยกเลิก</button></span></div>`).join("") || `<p class="small muted">ยังไม่มีลิงก์ที่ใช้ได้</p>`}</div>
+      <p class="small muted">ลิงก์ใช้ได้ 14 วัน 20 คน ใครได้ลิงก์ไปก็เข้าวงได้ ส่งเฉพาะสมาชิก</p>` : ""}`;
+  $("#cb-out").onclick = cloudSignOut;
+  $("#cb-new").onclick = () => cloudCreateBand(false);
+  const sw = $("#cb-switch"); if (sw) sw.onchange = () => { prefs.set("cloudBand", sw.value); location.reload(); };
+  $("#cb-name").onclick = () => promptText("ชื่อของฉันในวง", "ชื่อที่สมาชิกคนอื่นเห็น", Cloud.band.myName || "", async name => {
+    const { error } = await Cloud.sb.from("band_members").update({ display_name: name }).eq("band_id", Cloud.band.id).eq("user_id", Cloud.user.id);
+    if (error) toast("บันทึกชื่อไม่ได้: " + errText(cloudErr(error))); else { prefs.set("myName", name); Cloud.band.myName = name; drawCloudBox(); }
+  });
+  const rn = $("#cb-rename"); if (rn) rn.onclick = () => promptText("เปลี่ยนชื่อวง", "ชื่อวง", Cloud.band.name, async name => {
+    const { error } = await Cloud.sb.from("bands").update({ name }).eq("id", Cloud.band.id);
+    if (error) toast("เปลี่ยนชื่อไม่ได้: " + errText(cloudErr(error))); else { Cloud.band.name = name; drawCloudBox(); }
+  });
+  const lv = $("#cb-leave"); if (lv) lv.onclick = async () => {
+    if (!(await confirmDialog(`ออกจากวง “${Cloud.band.name}”?`, "จะไม่เห็นงานและเพลงของวงนี้อีก จนกว่าจะได้ลิงก์เชิญใหม่", "ออกจากวง", true))) return;
+    const { error } = await Cloud.sb.rpc("remove_member", { p_band: Cloud.band.id, p_user: Cloud.user.id });
+    if (error) toast(/owner/.test(error.message) ? "คุณเป็นเจ้าของคนเดียว ตั้งคนอื่นเป็นเจ้าของก่อนออก" : "ออกจากวงไม่ได้: " + errText(cloudErr(error)), 6000);
+    else { prefs.set("cloudBand", ""); location.reload(); }
+  };
+  box.onclick = async e => {
+    const inv = e.target.closest("[data-invite]"), cp = e.target.closest("[data-copy]"), rv = e.target.closest("[data-revoke]"), rm = e.target.closest("[data-remove]");
+    if (inv) {
+      const { data: code, error } = await Cloud.sb.rpc("create_invite", { p_band: Cloud.band.id, p_role: inv.dataset.invite });
+      if (error) { toast("สร้างลิงก์ไม่ได้: " + errText(cloudErr(error))); return; }
+      await copyText(inviteUrl(code), `คัดลอกลิงก์เชิญ${ROLE_TH[inv.dataset.invite]}แล้ว`);
+      drawCloudBox();
+    }
+    if (cp) copyText(cp.dataset.copy, "คัดลอกลิงก์แล้ว");
+    if (rv) { await Cloud.sb.rpc("revoke_invite", { p_code: rv.dataset.revoke }); drawCloudBox(); }
+    if (rm) {
+      const m = members.find(x => x.user_id === rm.dataset.remove);
+      if (!(await confirmDialog(`เอา ${m.display_name || "สมาชิกคนนี้"} ออกจากวง?`, "เขาจะไม่เห็นข้อมูลของวงอีก", "เอาออก", true))) return;
+      const { error } = await Cloud.sb.rpc("remove_member", { p_band: Cloud.band.id, p_user: rm.dataset.remove });
+      if (error) toast("เอาออกไม่ได้: " + (/owner/.test(error.message) ? "วงต้องมีเจ้าของอย่างน้อย 1 คน" : errText(cloudErr(error))));
+      drawCloudBox();
+    }
+  };
+  box.onchange = async e => {
+    const sel = e.target.closest("[data-role]"); if (!sel) return;
+    const { error } = await Cloud.sb.rpc("set_member_role", { p_band: Cloud.band.id, p_user: sel.dataset.role, p_role: sel.value });
+    if (error) toast("เปลี่ยนสิทธิ์ไม่ได้: " + (/owner/.test(error.message) ? "วงต้องมีเจ้าของอย่างน้อย 1 คน" : errText(cloudErr(error))));
+    else toast("เปลี่ยนสิทธิ์แล้ว มีผลเมื่อสมาชิกเปิดหน้าใหม่");
+    drawCloudBox();
+  };
+}
+async function copyText(text, done) {
+  try { await navigator.clipboard.writeText(text); toast(done); }
+  catch (e) {
+    openDialog(`<h2>คัดลอกลิงก์</h2><label class="f"><span>กดค้างแล้วเลือกคัดลอก</span><input id="cp-v" readonly value="${esc(text)}"></label><div class="actions"><button class="btn" data-a="c" type="button">ปิด</button></div>`,
+      (el, d) => { const i = $("#cp-v", el); i.focus(); i.select(); $('[data-a="c"]', el).onclick = () => d.close(); }, { label: "คัดลอกลิงก์" });
+  }
 }

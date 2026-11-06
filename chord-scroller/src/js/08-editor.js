@@ -249,7 +249,8 @@ function imagePanel() {
 let sampleFn = undefined, sampleLimits = null;
 async function getSample() {
   if (sampleFn !== undefined) return sampleFn;
-  sampleFn = window.claude && window.claude.use ? await window.claude.use("sample").catch(() => null) : null;
+  sampleFn = Store.mode === "cloud" && Store.canWrite !== false ? cloudSampler()
+    : window.claude && window.claude.use ? await window.claude.use("sample").catch(() => null) : null;
   if (sampleFn) sampleLimits = await sampleFn.limits().catch(() => null);
   return sampleFn;
 }
@@ -273,9 +274,9 @@ async function wireImagePanel() {
   const s = await getSample();
   const note = $("#ed-img-note");
   if (!s || !(sampleLimits && sampleLimits.images)) {
-    if (note) note.textContent = Store.mode === "device" ? "การอ่านจากรูปใช้ได้เมื่อเปิดผ่านลิงก์ claude.ai (ลิงก์สาธารณะไม่มี Claude ให้ใช้) ระหว่างนี้พิมพ์หรือวางข้อความด้านล่างแทนได้" : "หน้านี้ส่งรูปให้ Claude อ่านไม่ได้ในตอนนี้ พิมพ์หรือวางข้อความด้านล่างแทนได้";
+    if (note) note.textContent = Store.mode === "device" ? (cloudConfigured() ? "เข้าสู่ระบบและเข้าวงก่อน จึงจะอ่านรูปได้ ระหว่างนี้พิมพ์หรือวางข้อความด้านล่างแทนได้" : "การอ่านจากรูปใช้ได้เมื่อเปิดผ่านลิงก์ claude.ai ระหว่างนี้พิมพ์หรือวางข้อความด้านล่างแทนได้") : "หน้านี้ส่งรูปให้ Claude อ่านไม่ได้ในตอนนี้ พิมพ์หรือวางข้อความด้านล่างแทนได้";
     $("#ed-read").hidden = true;
-  } else if (note) note.textContent = `การอ่านใช้โควตา Claude ของบัญชีที่กดอ่าน และอาจใช้เวลา 30–90 วินาที (สูงสุด ${sampleLimits.images.maxCount} รูปต่อครั้ง)`;
+  } else if (note) note.textContent = Store.mode === "cloud" ? `อ่านด้วย Claude ผ่านเซิร์ฟเวอร์ของวง (ใช้คีย์ Anthropic ของเจ้าของวง) อาจใช้เวลา 30–90 วินาที สูงสุด ${sampleLimits.images.maxCount} รูปต่อครั้ง และ 40 รูปต่อคนต่อชั่วโมง` : `การอ่านใช้โควตา Claude ของบัญชีที่กดอ่าน และอาจใช้เวลา 30–90 วินาที (สูงสุด ${sampleLimits.images.maxCount} รูปต่อครั้ง)`;
   $("#ed-file").addEventListener("change", e => { addImages(e.target.files); e.target.value = ""; });
   drop.addEventListener("dragover", e => { e.preventDefault(); drop.classList.add("over"); });
   drop.addEventListener("dragleave", () => drop.classList.remove("over"));
@@ -360,6 +361,7 @@ async function readImages() {
     const blobs = await prepareImages(ed.images.map(i => i.file), max);
     $("#ed-progress-t").textContent = "Claude กำลังอ่านรูป… (มักใช้ 30–90 วินาที)";
     const res = await sample.json(ocrPrompt(blobs.length, blobs.length > ed.images.length), {
+      tiled: blobs.length > ed.images.length,
       images: blobs, signal: ctl.signal,
       onText: ({ text }) => { $("#ed-progress-t").textContent = `กำลังเขียนผล… ${text.length} ตัวอักษร`; }
     });
@@ -388,7 +390,7 @@ async function readImages() {
     const msg = {
       cancelled: "หยุดอ่านแล้ว", not_granted: "ยังไม่ได้อนุญาตให้หน้านี้ใช้ Claude", sampling_disabled: "บัญชีนี้ใช้ Claude อ่านรูปไม่ได้",
       images_unavailable: "หน้านี้ส่งรูปไม่ได้ในตอนนี้", image_rejected: "รูปนี้ใช้ไม่ได้ (ชนิดไฟล์หรือขนาดไม่รองรับ) ลองรูปอื่น",
-      rate_limited: "ใช้งานถี่เกินไปหรือโควตาหมด ลองใหม่ภายหลัง", invalid_json: "ผลที่อ่านได้อยู่ในรูปแบบที่ใช้ไม่ได้ กดอ่านใหม่อีกครั้ง",
+      rate_limited: "ใช้งานถี่เกินไปหรือโควตาหมด ลองใหม่ภายหลัง", not_configured: "เจ้าของวงยังไม่ได้ใส่คีย์ Anthropic ใน Supabase (Edge Functions → Secrets)", not_signed_in: "เข้าสู่ระบบใหม่อีกครั้ง", invalid_json: "ผลที่อ่านได้อยู่ในรูปแบบที่ใช้ไม่ได้ กดอ่านใหม่อีกครั้ง",
       refused: "Claude ไม่อ่านรูปนี้ ลองรูปอื่น", session_expired: "ต้องเข้าสู่ระบบ claude.ai ใหม่", empty_completion: "ไม่ได้ผลลัพธ์ ลองครอปรูปให้เหลือแค่ชีทคอร์ด"
     }[code] || "อ่านไม่สำเร็จ ลองใหม่อีกครั้ง";
     toast(msg, 5000);

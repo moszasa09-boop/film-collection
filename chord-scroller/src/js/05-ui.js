@@ -27,6 +27,7 @@ function refreshSyncPill() {
 }
 document.addEventListener("click", e => {
   if (inside(e.target, "#sync") && Sync.failed.length) openFailedDialog();
+  if (inside(e.target, "[data-signin]")) cloudSignIn();
   const hide = inside(e.target, "[data-hide-device-note]") && e.target.closest(".banner");
   if (hide) { prefs.set("hideDeviceNote", true); hide.remove(); }
 });
@@ -46,7 +47,11 @@ function header({ title, back, tabs, right = "", sync = true }) {
   </nav>` : ""}</header>`;
 }
 function modeBanner() {
-  if (Store.mode === "device") return prefs.get("hideDeviceNote", false) ? "" : `<div class="banner info"><span class="grow"><b>ข้อมูลเก็บในเครื่องนี้เท่านั้น:</b> แก้ไขและบันทึกได้ แต่คนอื่นและเครื่องอื่นจะไม่เห็น ส่งต่อด้วยไฟล์สำรองที่หน้า <a href="#data">สมาชิกและข้อมูล</a> · ถ้าลบข้อมูลเบราว์เซอร์ ข้อมูลจะหาย</span><button class="btn ghost" type="button" data-hide-device-note>รับทราบ</button></div>`;
+  if (Store.mode === "device" && cloudConfigured()) return Cloud.user
+    ? `<div class="banner info"><span class="grow"><b>ยังไม่มีวง:</b> สร้างวงใหม่ หรือเปิดลิงก์เชิญจากเจ้าของวง ระหว่างนี้ข้อมูลเก็บในเครื่องนี้</span><a class="btn" href="#data">ไปที่วง</a></div>`
+    : `<div class="banner info"><span class="grow"><b>ข้อมูลเก็บในเครื่องนี้เท่านั้น:</b> เข้าสู่ระบบเพื่อใช้งานร่วมกับวงและซิงก์ทุกเครื่อง</span><button class="btn primary" type="button" data-signin>เข้าสู่ระบบ</button></div>`;
+  if (Store.mode === "device") return prefs.get("hideDeviceNote", false) ? "" : `<div class="banner info"><span class="grow"><b>ข้อมูลเก็บในเครื่องนี้เท่านั้น:</b> แก้ไขและบันทึกได้ แต่คนอื่นและเครื่องอื่นจะไม่เห็น ส่งต่อด้วยไฟล์สำรองที่หน้า <a href="#data">แชร์และสำรอง</a> · ถ้าลบข้อมูลเบราว์เซอร์ ข้อมูลจะหาย</span><button class="btn ghost" type="button" data-hide-device-note>รับทราบ</button></div>`;
+  if (Store.mode === "cloud" && Store.canWrite === false) return `<div class="banner info"><span class="grow"><b>ผู้ดู:</b> เปิดงานและเล่นได้ แต่แก้ไขไม่ได้ ขอสิทธิ์ผู้แก้ไขจากเจ้าของวง “${esc(Cloud.band.name)}”</span></div>`;
   if (Store.revoked) return `<div class="banner bad"><span class="grow">สิทธิ์การเข้าถึงของหน้านี้เปลี่ยนไป ข้อมูลอาจไม่อัปเดต เปิดหน้าใหม่อีกครั้ง</span></div>`;
   if (Store.canWrite === false) return `<div class="banner info"><span class="grow"><b>ดูอย่างเดียว:</b> บัญชีนี้เปิดดูและเล่นได้ แต่แก้ไขไม่ได้ ขอสิทธิ์ Contributor หรือ Editor จากเจ้าของลิงก์</span></div>`;
   if (Store.slow && !Store.fresh) return `<div class="banner"><span class="grow">ยังเชื่อมต่อฐานข้อมูลไม่ได้ ที่เห็นอยู่อาจไม่ใช่ข้อมูลล่าสุด ระบบจะลองต่อเอง</span></div>`;

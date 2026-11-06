@@ -20,7 +20,7 @@ const Store = {
   revoked: false,
   listeners: new Set()
 };
-const writable = () => Store.mode === "device" || (Store.mode === "shared" && Store.canWrite !== false && !Store.revoked);
+const writable = () => Store.mode === "device" || ((Store.mode === "shared" || Store.mode === "cloud") && Store.canWrite !== false && !Store.revoked);
 function notify(what) { Store.listeners.forEach(fn => { try { fn(what); } catch (e) { console.error(e); } }); }
 
 async function initStore() {
@@ -37,7 +37,18 @@ async function initStore() {
       Store.canWrite = await user.can("data.write");
     } catch (e) { /* reads never reject per contract; keep defaults */ }
   }
-  if (!db) { await openDevice(); return; }
+  if (!db) {
+    const cdb = await cloudStart().catch(e => { console.error(e); return null; });
+    if (cdb) {
+      Store.db = cdb; Store.mode = "cloud";
+      Store.canWrite = Cloud.role !== "viewer";
+      Store.me = { id: Cloud.user.id, name: Cloud.band.myName || "", isOwner: Cloud.role === "owner", canEdit: Cloud.role === "owner" };
+      subscribeAll(cdb);
+      setTimeout(cloudCopyLocalIfAsked, 1500);
+      return;
+    }
+    await openDevice(); return;
+  }
   Store.db = db; Store.mode = "shared";
   subscribeAll(db);
 }
@@ -160,6 +171,15 @@ async function retryFailed(id) {
 }
 function syncState() {
   if (Store.mode === "loading") return { state: "saving", text: "กำลังโหลด…" };
+  if (Store.mode === "cloud") {
+    if (Sync.failed.length) return { state: "error", text: `บันทึกไม่สำเร็จ ${Sync.failed.length} รายการ` };
+    const n = Store.db.pending ? Store.db.pending() : 0;
+    if (n) return navigator.onLine ? { state: "saving", text: `กำลังส่ง ${n} รายการ…` } : { state: "offline", text: `ออฟไลน์ รอส่ง ${n} รายการ` };
+    if (!navigator.onLine) return { state: "offline", text: "ออฟไลน์ ใช้ข้อมูลที่เก็บไว้" };
+    if (Cloud.realtime !== "SUBSCRIBED") return { state: "stale", text: "กำลังเชื่อมต่อวง…" };
+    if (Store.canWrite === false) return { state: "readonly", text: "ผู้ดู · ซิงก์กับวงแล้ว" };
+    return { state: "ok", text: "ซิงก์กับวงแล้ว" };
+  }
   if (Store.mode === "device") {
     if (Sync.failed.length) return { state: "error", text: `บันทึกไม่สำเร็จ ${Sync.failed.length} รายการ` };
     return { state: "local", text: Sync.pending ? "กำลังบันทึก…" : "เก็บในเครื่องนี้" };
@@ -196,6 +216,7 @@ async function saveSong(song, baseRev, { force = false } = {}) {
     let cur;
     try { cur = await withTimeout(ref.get(), 6000); }
     catch (e) { if (!force) return { unchecked: true }; }
+    if (cur && cur.metadata && cur.metadata.fromCache && !force) return { unchecked: true };   // offline copy: can't tell if someone else saved
     if (cur && !force) {
       if (!cur.exists) return { conflict: null };
       const theirRev = (cur.data() || {}).rev || 0;
@@ -206,7 +227,18 @@ async function saveSong(song, baseRev, { force = false } = {}) {
     if (before) await keepHistory("song", id, before, "edit");
   }
   const body = songBody({ ...song, id }, rev);
-  const ok = await track("บันทึกเพลง “" + body.title + "”", () => ref.set(body));
+  const label = "บันทึกเพลง “" + body.title + "”";
+  if (ref.putIfRev && song.id && baseRev != null && !force && navigator.onLine) {
+    // the server compares the revision and writes in one step, so a save that raced ours cannot be lost
+    let conflict = null;
+    const ok = await track(label, async () => {
+      try { await ref.putIfRev(body, rev - 1); }
+      catch (e) { if (e && e.code === "conflict") { conflict = e; return; } throw e; }
+    });
+    if (conflict) return { conflict: conflict.current ? { ...conflict.current, id } : null };
+    return ok ? { ok: true, id, rev } : { ok: false, id };
+  }
+  const ok = await track(label, () => ref.set(body));
   return ok ? { ok: true, id, rev } : { ok: false, id };
 }
 async function patchSong(id, patch) {

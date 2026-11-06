@@ -9,7 +9,7 @@ PASS [device] four songs placed in the gig ห้ามใจ, ก่อนต�
 PASS [device] picker warns a song is already in the gig
 PASS [device] gig shows count, total time and planned minutes
 PASS [device] negative BPM refused
-PASS [device] key +2, capo 2, BPM 100, singer and note saved on this gig {"eventId":"10q7gc310kc7","setId":"pfr1h21w40jw","songId":"sd0631e0d315","order":1000,"shift":2,"capo":2,"bpm":100,"singer":"โม","note":"เริ่มช้า ๆ","updatedAt":1793943405353,"updatedBy":null,"id":"ro0gummps9il"}
+PASS [device] key +2, capo 2, BPM 100, singer and note saved on this gig {"eventId":"j3dqav7wnpr5","setId":"pdq80uay80ze","songId":"sd0631e0d315","order":1000,"shift":2,"capo":2,"bpm":100,"singer":"โม","note":"เริ่มช้า ๆ","updatedAt":1793944384380,"updatedBy":null,"id":"enb8y6nrrh8w"}
 PASS [device] the same song in ITD keeps its own settings
 PASS [device] row shows the gig key F#m and capo
 PASS [device] dragged 3rd song to the top: ห้ามใจ / ฝากที / คุกเข่า / ก่อนตาย → คุกเข่า / ห้ามใจ / ฝากที / ก่อนตาย
@@ -30,14 +30,14 @@ PASS [device] next-song button opens the next song
 PASS [device] BPM changed in the player is saved to this gig item
 PASS [device] stage mode turns on
 PASS [device] 320px home fits: 
-PASS [device] 320px #event-10q7gc310kc7 fits: 
-PASS [device] 320px #play-10q7gc310kc7-ro0gummps9il fits: 
+PASS [device] 320px #event-j3dqav7wnpr5 fits: 
+PASS [device] 320px #play-j3dqav7wnpr5-enb8y6nrrh8w fits: 
 PASS [device] 320px #library fits: 
 PASS [device] 320px #data fits: 
 PASS [device] 320px #new-text fits: 
 PASS [device] 360px home fits: 
-PASS [device] 360px #event-10q7gc310kc7 fits: 
-PASS [device] 360px #play-10q7gc310kc7-ro0gummps9il fits: 
+PASS [device] 360px #event-j3dqav7wnpr5 fits: 
+PASS [device] 360px #play-j3dqav7wnpr5-enb8y6nrrh8w fits: 
 PASS [device] 360px #library fits: 
 PASS [device] 360px #data fits: 
 PASS [device] 360px #new-text fits: 
