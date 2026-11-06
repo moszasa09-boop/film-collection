@@ -11,6 +11,8 @@ const file = 'file://' + path.resolve(__dirname, '../index.html');
     const A = window.ChordApp, out = [];
     const ok = (c, m) => out.push([!!c, m]);
     const songs = BUILTIN.songs;
+    const byId = id => songs.find(s => s.id === id).blocks;
+    const KONTAI = byId("s820c2f20e69"), HAMJAI = byId("sd0631e0d315");   // ก่อนตาย, ห้ามใจ
     // 1. every starter song survives text -> blocks -> text unchanged
     for (const s of songs) {
       const t = A.blocksToText(s.blocks);
@@ -32,8 +34,8 @@ const file = 'file://' + path.resolve(__dirname, '../index.html');
     // 3. transposition
     const T = [["D/F#", 2, "E/G#"], ["Bbm", 1, "Bm"], ["G#/C", -1, "G/B"], ["(C)", 2, "(D)"], ["C#", -1, "C"], ["Ebm", 12, "Ebm"], ["B", 1, "C"], ["C", -1, "B"], ["F#m7b5", 3, "Am7b5"], ["DmM7", -2, "CmM7"]];
     for (const [c, s, w] of T) ok(A.tr(c, s) === w, `tr(${c},${s}) = ${A.tr(c, s)} want ${w}`);
-    ok(A.keyOf(songs[0].blocks, 0) === "C#" && A.keyOf(songs[0].blocks, 2) === "Eb", "key of ก่อนตาย C#, +2 = Eb");
-    ok(A.keyOf(songs[2].blocks, 0) === "Em", "key of ห้ามใจ Em");
+    ok(A.keyOf(KONTAI, 0) === "C#" && A.keyOf(KONTAI, 2) === "Eb", "key of ก่อนตาย C#, +2 = Eb");
+    ok(A.keyOf(HAMJAI, 0) === "Em", "key of ห้ามใจ Em");
     // capo 2 on a C# song shows B shapes: shift - capo
     ok(A.tr("C#", 0 - 2) === "B" && A.tr("Ebm", -2) === "C#m", "capo 2 shapes");
     // 4. chords-above converter keeps chords over the right Thai syllable (tone marks take no column)
@@ -56,10 +58,10 @@ const file = 'file://' + path.resolve(__dirname, '../index.html');
     // 6. English lyrics count as lyrics
     ok(A.songStats({ blocks: A.textToBlocks("[G]Hello [D]world").blocks }).ready, "English lyrics are ready");
     // 7. timing: repeat notes expand, BPM drives length
-    const t80 = A.songSeconds(songs[2].blocks, 80), t160 = A.songSeconds(songs[2].blocks, 160);
+    const t80 = A.songSeconds(HAMJAI, 80), t160 = A.songSeconds(HAMJAI, 160);
     ok(Math.abs(t80 - 2 * t160) < 0.01, "length halves at double BPM");
-    ok(A.analyse(songs[2].blocks).some(x => /ซ้ำ/.test(x.name || "")), "ห้ามใจ repeats are written out");
-    ok(A.songSeconds(songs[2].blocks, -5) === A.songSeconds(songs[2].blocks, 80), "bad BPM falls back to 80");
+    ok(A.analyse(HAMJAI).some(x => /ซ้ำ/.test(x.name || "")), "ห้ามใจ repeats are written out");
+    ok(A.songSeconds(HAMJAI, -5) === A.songSeconds(HAMJAI, 80), "bad BPM falls back to 80");
     // 8. backup checks
     ok(A.checkBackup("not json").fatal, "backup: non-JSON rejected");
     ok(A.checkBackup('{"format":"other"}').fatal, "backup: other format rejected");

@@ -28,7 +28,9 @@ chord-scroller/
 │       ├── 08-editor.js    เพิ่ม/แก้เพลง อ่านจากรูป
 │       ├── 09-player.js    เครื่องเล่น
 │       └── 10-data.js      แชร์ สำรอง กู้คืน
-├── setlists/ITD/     ← 12 เพลงตั้งต้นของงาน ITD (แต่ละไฟล์มีรหัสเพลงถาวร "id")
+├── setlists/        ← งานตั้งต้น: เบรค-1/ (10 เพลง) และ เบรค-2/ (12 เพลง) ลำดับและคนร้องอยู่ใน _event.json
+│                      แต่ละไฟล์มีรหัสเพลงถาวร "id" · ไฟล์ที่มี "ref": true ชี้ไปเพลงในโฟลเดอร์อื่น
+├── tools/make-band-data.js ← สร้าง band-data.json (ฉบับของวง) จากงานตั้งต้น
 ├── tests/            ← ชุดทดสอบ (Playwright + Chromium)
 └── docs/             ← ความต้องการ สถานะ และผลทดสอบล่าสุด
 ```
@@ -45,6 +47,11 @@ node tests/unit.js
 ```
 ```bash
 node tests/e2e.js
+```
+
+ถ้าแก้เพลงหรือลำดับใน `setlists/` ให้สร้าง `band-data.json` ใหม่ด้วย เพื่อให้เครื่องที่เคยเปิดลิงก์แล้วได้ของใหม่:
+```bash
+node tools/make-band-data.js
 ```
 
 คำสั่งแรกสร้าง `index.html` ส่วนคำสั่งที่สองสร้าง `chords.html` สำหรับอัปเดตลิงก์ claude.ai ชุดทดสอบต้องมี Playwright และ Chromium

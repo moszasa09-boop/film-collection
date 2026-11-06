@@ -12,18 +12,18 @@ PASS [mobile] gig page fits the phone width
 PASS [order] next button walks the gig in its current order (both sets)
 PASS [order] previous goes back one
 PASS [order] each song shows its own gig BPM after switching
-PASS [isolation] ITD rows (order, key, BPM, singer) unchanged after all edits to the other gig
+PASS [isolation] เบรค 1 and เบรค 2 rows (order, key, BPM, singer) unchanged after all edits to the other gig
 PASS [reset] reset clears key, capo, BPM and length but keeps singer and note
 PASS [reset] Undo brings the gig settings back
 PASS [reset] player “คืนค่าเดิม” shows the song’s own BPM, key and no capo
 PASS [reset] and saves it to the gig
 PASS [reset] player reset can be undone
-PASS [time] total = songs + 15 min break + 30 s between songs (50:13)
+PASS [time] total = songs + 15 min break + 30 s between songs (46:23)
 PASS [time] warns that the show runs over the planned 10 minutes
 PASS [time] readiness check lists the overrun
 PASS [time] break shows as its own row
 PASS [time] with 120 minutes it shows time left instead
-PASS [time] end of the song before the break says “พัก 15 นาที”: จบเพลง · พัก 15 นาที แล้ว ถัดไป ดีแต่ปากเพลงถัดไป
+PASS [time] end of the song before the break says “พัก 15 นาที”: จบเพลง · พัก 15 นาที แล้ว ถัดไป ขี้หึงเพลงถัดไป
 PASS [time] next button skips the break to the following song
 PASS [ready] flags unclear chords/words
 PASS [ready] flags songs not checked against the recording and missing singers
@@ -38,7 +38,7 @@ PASS [trash] deleted song is in the trash
 PASS [trash] restored song is back in the gig at the same place
 PASS [trash] deleted gig restored with all 8 rows
 PASS [trash] restored rows keep their key/capo/BPM/singer/note
-PASS [backup] after restore the data is identical to the backup (13 songs, 2 gigs, 20 rows)
+PASS [backup] after restore the data is identical to the backup (20 songs, 3 gigs, 30 rows)
 PASS [offline] gig says it is not ready offline yet
 PASS [offline] preparing reports success: พร้อมเล่นออฟไลน์แล้ว: แอปและ 7 เพลงอยู่ในเครื่องนี้
 PASS [offline] status chip says ready

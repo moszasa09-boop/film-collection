@@ -1,3 +1,10 @@
+PASS round trip 9 นาฬิกา
+PASS round trip ขี้หึง
+PASS round trip ฝากที
+PASS round trip รักเธอหัวทิ่มบ่อ
+PASS round trip เธอยัง
+PASS round trip เล่นของสูง
+PASS round trip สักวันฉันจะดีพอ
 PASS round trip ก่อนตาย
 PASS round trip คุกเข่า
 PASS round trip ห้ามใจ
@@ -5,7 +12,7 @@ PASS round trip รักไม่ช่วยอะไร
 PASS round trip ดีแต่ปาก
 PASS round trip กล้าพอไหม
 PASS round trip กลัวว่าฉันจะไม่เสียใจ
-PASS round trip ฝากที
+PASS round trip วัดใจ
 PASS round trip โปรดส่งใครมารักฉันที
 PASS round trip กระเป๋าแบนแฟนยิ้ม
 PASS round trip อ๊อด อ๊อด
@@ -60,4 +67,4 @@ PASS bad BPM falls back to 80
 PASS backup: non-JSON rejected
 PASS backup: other format rejected
 PASS backup: bad entries skipped and values clamped ["ข้ามเพลงที่ข้อมูลไม่ครบ: b","ข้ามเพลงที่ข้อมูลไม่ครบ: ok2","ข้ามรายการที่อ้างถึงงานหรือเพลงที่ไม่มีในไฟล์"]
-ALL 62 PASSED
+ALL 69 PASSED

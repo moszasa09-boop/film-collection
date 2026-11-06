@@ -25,8 +25,9 @@ const parseTime = t => { const m = /(\d+):(\d\d)/.exec(t); return m ? +m[1] * 60
     a.on('pageerror', e => errs.push(e.message));
     const S = (fn, arg) => a.evaluate(fn, arg);
     await a.goto(URL0); await a.waitForSelector('.event-card'); await sleep(400);
-    const ITD = await S(() => [...ChordApp.Store.events.keys()][0]);
-    const itdBefore = await S(id => JSON.stringify([...ChordApp.Store.items.values()].filter(i => i.eventId === id).sort((x, y) => x.order - y.order)), ITD);
+    // the two starter gigs (เบรค 1, เบรค 2): nothing done to the new gig below may touch them
+    const starterRows = () => S(() => { const ids = new Set(BUILTIN.events.map(e => e.id)); return JSON.stringify([...ChordApp.Store.items.values()].filter(i => ids.has(i.eventId)).sort((x, y) => x.eventId.localeCompare(y.eventId) || x.order - y.order)); });
+    const itdBefore = await starterRows();
 
     // a gig with 5 songs in the main set and 1 in a reserve set
     section = '[setup] ';
@@ -125,8 +126,8 @@ const parseTime = t => { const m = /(\d+):(\d\d)/.exec(t); return m ? +m[1] * 60
 
     section = '[isolation] ';
     await step('other gigs untouched', async () => {
-      const now = await S(id => JSON.stringify([...ChordApp.Store.items.values()].filter(i => i.eventId === id).sort((x, y) => x.order - y.order)), ITD);
-      ok(now === itdBefore, 'ITD rows (order, key, BPM, singer) unchanged after all edits to the other gig');
+      const now = await starterRows();
+      ok(now === itdBefore && JSON.parse(now).length === await S(() => BUILTIN.items.length), 'เบรค 1 and เบรค 2 rows (order, key, BPM, singer) unchanged after all edits to the other gig');
     });
 
     section = '[reset] ';

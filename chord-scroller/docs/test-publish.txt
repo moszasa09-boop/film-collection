@@ -1,7 +1,14 @@
+PASS old version: one gig (ITD) with 12 rows
+PASS never took a copy: the gigs are now เบรค 1 and เบรค 2 (เบรค 1,เบรค 2)
+PASS never took a copy: both breaks have exactly the band’s songs, order and singers, no left-over ITD rows (22 rows)
+PASS never took a copy: all 19 songs, with the band’s version of each
+PASS took the old copy: the gigs are now เบรค 1 and เบรค 2 (เบรค 1,เบรค 2)
+PASS took the old copy: both breaks have exactly the band’s songs, order and singers, no left-over ITD rows (22 rows)
+PASS took the old copy: all 19 songs, with the band’s version of each
 PASS two devices that never talked to each other show the same gigs and songs
 PASS the band’s published copy was loaded
 PASS renamed song shows the band’s name on both devices
-PASS the gig the band removed is gone on both devices
+PASS the gigs the band removed are gone on both devices
 PASS the new gig is on both devices
 PASS a gig B made only on its own device stays on B
 PASS gig settings (key, BPM, singer) arrive as published
@@ -14,4 +21,4 @@ PASS the file holds this device’s gigs and songs
 PASS the other device takes the newly published copy
 PASS no script errors: 
 
-ALL 15 PASSED
+ALL 22 PASSED

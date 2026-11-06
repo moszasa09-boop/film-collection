@@ -1,7 +1,7 @@
 // "Everyone sees the same thing" on the public link without accounts: the band's published copy
 // (band-data.json next to the app). Two devices, a local edit, a new published copy, a removal.
 const { chromium } = require('playwright');
-const { spawn } = require('child_process');
+const { spawn, execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const ROOT = path.resolve(__dirname, '..');
@@ -24,11 +24,42 @@ const content = p => p.evaluate(() => {
   const errs = [];
   const device = async name => { const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, acceptDownloads: true }); const p = await ctx.newPage(); p.on('pageerror', e => errs.push(name + ': ' + e.message)); return p; };
   try {
+    await step('phones that opened the old version get เบรค 1 and เบรค 2', async () => {
+      // the first public version had one gig (ITD) with position-based row ids
+      const old = f => execSync(`git show f68edda:chord-scroller/${f}`, { cwd: ROOT, maxBuffer: 1 << 26 });
+      const put = (f, data) => fs.writeFileSync(path.join(DIR, f), data);
+      const fresh = {}; for (const f of ['index.html', 'sw.js', 'band-data.json']) fresh[f] = fs.readFileSync(path.join(DIR, f));
+      put('index.html', old('index.html')); put('sw.js', old('sw.js')); fs.unlinkSync(path.join(DIR, 'band-data.json'));
+      const N = await device('never-took-a-copy');
+      await N.goto(URL0); await sleep(1200);
+      put('band-data.json', old('band-data.json'));
+      const O = await device('took-the-old-copy');
+      await O.goto(URL0); await sleep(1500);
+      ok(await O.evaluate(() => [...ChordApp.Store.events.values()].map(e => e.name).join() === 'ITD' && ChordApp.Store.items.size === 12), 'old version: one gig (ITD) with 12 rows');
+      await O.evaluate(id => patchSong(id, { title: 'ฝากที (แก้ในเครื่อง)' }), 'sf22531604bf'); await sleep(200);
+      for (const f in fresh) put(f, fresh[f]);
+      for (const [name, p] of [['never took a copy', N], ['took the old copy', O]]) {
+        await p.reload(); await sleep(2000);
+        const r = await p.evaluate(() => {
+          const rows = id => [...ChordApp.Store.items.values()].filter(i => i.eventId === id).sort((a, b) => a.order - b.order)
+            .map(i => [i.id, i.songId, i.singer].join('|')).join('\n');
+          const want = id => BUILTIN.items.filter(i => i.eventId === id).map(i => [i.id, i.songId, i.singer].join('|')).join('\n');
+          return { names: [...ChordApp.Store.events.values()].map(e => e.name).sort().join(), b1: rows('eegvb5kgmdw9') === want('eegvb5kgmdw9'),
+            b2: rows('e9adc0d877e2') === want('e9adc0d877e2'), items: ChordApp.Store.items.size, wantItems: BUILTIN.items.length,
+            songs: ChordApp.Store.songs.size, wantSongs: BUILTIN.songs.length, fakthi: ChordApp.Store.songs.get('sf22531604bf').title };
+        });
+        ok(r.names === 'เบรค 1,เบรค 2', `${name}: the gigs are now เบรค 1 and เบรค 2 (${r.names})`);
+        ok(r.b1 && r.b2 && r.items === r.wantItems, `${name}: both breaks have exactly the band’s songs, order and singers, no left-over ITD rows (${r.items} rows)`);
+        ok(r.songs === r.wantSongs && r.fakthi === 'ฝากที', `${name}: all ${r.wantSongs} songs, with the band’s version of each`);
+      }
+      await N.context().close(); await O.context().close();
+    });
+
     const A = await device('A'), B = await device('B');
     await step('first open', async () => {
       await A.goto(URL0); await B.goto(URL0); await sleep(1500);
       ok(await content(A) === await content(B), 'two devices that never talked to each other show the same gigs and songs');
-      ok(await A.evaluate(() => ChordApp.Store.songs.size === 12 && Published.at !== null), 'the band’s published copy was loaded');
+      ok(await A.evaluate(() => ChordApp.Store.songs.size === BUILTIN.songs.length && ChordApp.Store.events.size === 2 && Published.at !== null), 'the band’s published copy was loaded');
     });
 
     const pub = JSON.parse(fs.readFileSync(path.join(DIR, 'band-data.json'), 'utf8'));
@@ -38,7 +69,7 @@ const content = p => p.evaluate(() => {
       await A.evaluate(id => patchSong(id, { title: 'แก้ในเครื่อง A' }), song0.id);
       await B.evaluate(() => createEvent({ name: 'งานของ B เอง' }));
       await sleep(300);
-      // the band publishes: song renamed, ITD gig removed, a new gig with two songs
+      // the band publishes: song renamed, both starter gigs removed, a new gig with two songs
       const v2 = JSON.parse(JSON.stringify(pub));
       v2.exportedAt = new Date(Date.now() + 1000).toISOString();
       v2.songs[0].title = 'ชื่อใหม่จากวง';
@@ -51,7 +82,7 @@ const content = p => p.evaluate(() => {
       const a = await A.evaluate(id => ({ title: ChordApp.Store.songs.get(id).title, events: [...ChordApp.Store.events.values()].map(e => e.name).sort() }), song0.id);
       const b = await B.evaluate(id => ({ title: ChordApp.Store.songs.get(id).title, events: [...ChordApp.Store.events.values()].map(e => e.name).sort() }), song0.id);
       ok(a.title === 'ชื่อใหม่จากวง' && b.title === 'ชื่อใหม่จากวง', 'renamed song shows the band’s name on both devices');
-      ok(!a.events.includes('ITD') && !b.events.includes('ITD'), 'the gig the band removed is gone on both devices');
+      ok(!a.events.some(n => /^เบรค/.test(n)) && !b.events.some(n => /^เบรค/.test(n)), 'the gigs the band removed are gone on both devices');
       ok(a.events.includes('งานแต่ง 20 ธ.ค.') && b.events.includes('งานแต่ง 20 ธ.ค.'), 'the new gig is on both devices');
       ok(b.events.includes('งานของ B เอง') && !a.events.includes('งานของ B เอง'), 'a gig B made only on its own device stays on B');
       const row = await A.evaluate(() => ChordApp.Store.items.get('row000000001'));

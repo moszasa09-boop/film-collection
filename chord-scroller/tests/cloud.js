@@ -42,7 +42,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     await sleep(900);
   }
   const S = (p, fn, arg) => p.evaluate(fn, arg);
-  const mode = p => S(p, () => ({ mode: ChordApp.Store.mode, role: typeof Cloud !== 'undefined' ? Cloud.role : null, songs: ChordApp.Store.songs.size, events: ChordApp.Store.events.size }));
+  const mode = p => S(p, () => ({ mode: ChordApp.Store.mode, role: typeof Cloud !== 'undefined' ? Cloud.role : null, songs: ChordApp.Store.songs.size, events: ChordApp.Store.events.size, want: { songs: BUILTIN.songs.length, events: BUILTIN.events.length, items: BUILTIN.items.length } }));
   try {
     const O = await person('owner'), E = await person('editor'), V = await person('viewer');
 
@@ -51,7 +51,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     await step('owner signs in and creates the band', async () => {
       await O.page.goto(BASE); await sleep(900);
       const m0 = await mode(O.page);
-      ok(m0.mode === 'device' && m0.songs === 12, 'before signing in, the app works on this device with the starter songs');
+      ok(m0.mode === 'device' && m0.songs === m0.want.songs && m0.events === 2, 'before signing in, the app works on this device with the starter songs');
       ok(await O.page.isVisible('[data-signin]'), 'offers to sign in to work with the band');
       await signIn(O.page, 'owner@band.test');
       ok((await O.page.textContent('main')).includes('ยังไม่มีวง'), 'signed in without a band: asks to create one or use an invite');
@@ -64,7 +64,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
       BAND = backend.db.bands[0] && backend.db.bands[0].id;
       ok(m.mode === 'cloud' && m.role === 'owner', 'now working on the band as its owner');
       const docs = backend.db.docs.filter(d => d.band_id === BAND);
-      ok(docs.filter(d => d.col === 'songs').length === 12 && docs.filter(d => d.col === 'events').length === 1 && docs.filter(d => d.col === 'items').length === 12, `this device’s 12 songs and the ITD gig were copied up (${docs.length} documents)`);
+      ok(docs.filter(d => d.col === 'songs').length === m.want.songs && docs.filter(d => d.col === 'events').length === m.want.events && docs.filter(d => d.col === 'items').length === m.want.items, `this device’s ${m.want.songs} songs and both starter gigs were copied up (${docs.length} documents)`);
       ok((await O.page.textContent('#sync')).includes('ซิงก์กับวงแล้ว'), 'status says synced with the band');
     });
 
@@ -87,18 +87,18 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
       await E.page.goto(EDIT_URL); await sleep(800);
       await signIn(E.page, 'guitar@band.test');
       const me = await mode(E.page);
-      ok(me.mode === 'cloud' && me.role === 'editor' && me.songs === 12 && me.events === 1, 'editor is in the band and sees the 12 songs and the gig');
+      ok(me.mode === 'cloud' && me.role === 'editor' && me.songs === me.want.songs && me.events === me.want.events, 'editor is in the band and sees all the songs and gigs');
       ok(!(await E.page.evaluate(() => location.search.includes('join'))), 'the invite code is removed from the address bar');
       await V.page.goto(VIEW_URL); await sleep(800);
       await signIn(V.page, 'singer@band.test');
       const mv = await mode(V.page);
-      ok(mv.mode === 'cloud' && mv.role === 'viewer' && mv.songs === 12, 'viewer is in the band and sees the songs');
+      ok(mv.mode === 'cloud' && mv.role === 'viewer' && mv.songs === mv.want.songs, 'viewer is in the band and sees the songs');
       ok((await V.page.textContent('main')).includes('ผู้ดู'), 'viewer is told they can only view');
       ok(!(await V.page.$('#new-event')), 'viewer has no create button');
     });
 
     section = '[sync] ';
-    const ITD = () => backend.db.docs.find(d => d.col === 'events').id;
+    const ITD = () => 'e9adc0d877e2';   // เบรค 2
     await step('changes show up on the other devices', async () => {
       const ev = ITD();
       const it = backend.db.docs.find(d => d.col === 'items' && d.data.eventId === ev);
@@ -150,7 +150,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
       await E.ctx.setOffline(true);
       await E.page.reload(); await sleep(1800);
       const m = await mode(E.page);
-      ok(m.mode === 'cloud' && m.events >= 1 && m.songs >= 12, 'band data comes from this phone’s copy');
+      ok(m.mode === 'cloud' && m.events >= 2 && m.songs >= m.want.songs, 'band data comes from this phone’s copy');
       ok((await E.page.textContent('#sync')).includes('ออฟไลน์'), 'status says offline');
       const first = await S(E.page, id => eventItems(id).find(i => !isBreak(i)).id, ITD());
       await E.page.goto(BASE + `#play-${ITD()}-${first}`); await sleep(500);

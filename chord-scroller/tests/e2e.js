@@ -42,8 +42,9 @@ async function fitsWidth(p, w) {
 
   await step('first open', async () => {
     const s = await st(a, () => ({ songs: ChordApp.Store.songs.size, events: ChordApp.Store.events.size, items: ChordApp.Store.items.size, mode: ChordApp.Store.mode }));
-    ok(s.mode === 'device' && s.songs === 12 && s.events === 1 && s.items === 12, 'first open copies the 12 starter songs and the ITD gig ' + JSON.stringify(s));
-    itd = await st(a, () => [...ChordApp.Store.events.keys()][0]);
+    const want = await st(a, () => ({ songs: BUILTIN.songs.length, events: BUILTIN.events.length, items: BUILTIN.items.length }));
+    ok(s.mode === 'device' && s.songs === want.songs && s.events === want.events && s.items === want.items, 'first open copies the starter songs and gigs (เบรค 1, เบรค 2) ' + JSON.stringify(s));
+    itd = 'e9adc0d877e2';   // เบรค 2, the gig that was called ITD
     ok((await a.textContent('#sync')).includes('เก็บในเครื่องนี้'), 'status says data is kept on this device');
   });
 
@@ -91,7 +92,8 @@ async function fitsWidth(p, w) {
     const it = await st(a, id => ChordApp.Store.items.get(id), itemId);
     ok(it.shift === 2 && it.capo === 2 && it.bpm === 100 && it.singer === 'โม' && it.note === 'เริ่มช้า ๆ', 'key +2, capo 2, BPM 100, singer and note saved on this gig ' + JSON.stringify(it));
     const other = await st(a, id => { const s = [...ChordApp.Store.songs.values()].find(x => x.title === 'ห้ามใจ'); return [...ChordApp.Store.items.values()].find(i => i.eventId === id && i.songId === s.id); }, itd);
-    ok(other.shift === 0 && other.bpm === null && !other.singer, 'the same song in ITD keeps its own settings');
+    const orig = await st(a, id => BUILTIN.items.find(i => i.id === id), other.id);
+    ok(other.shift === orig.shift && other.bpm === orig.bpm && other.singer === orig.singer && other.singer === 'คิง (ร้องหลัก)', 'the same song in เบรค 2 keeps its own settings');
     ok((await a.textContent(`[data-item="${itemId}"]`)).includes('F#m') && (await a.textContent(`[data-item="${itemId}"]`)).includes('คาโป้ 2'), 'row shows the gig key F#m and capo');
   });
 
@@ -184,7 +186,7 @@ async function fitsWidth(p, w) {
     ok(dup !== evId && n === 4, 'copy has the same 4 songs');
     await a.click('#ev-del'); await yes(a); await sleep(400);
     const gone = await st(a, id => !ChordApp.Store.events.has(id) && ![...ChordApp.Store.items.values()].some(i => i.eventId === id), dup);
-    ok(gone && (await st(a, id => ChordApp.Store.events.has(id), evId)) && (await st(a, () => ChordApp.Store.songs.size)) === 12, 'deleting the copy leaves the original gig and the library alone');
+    ok(gone && (await st(a, id => ChordApp.Store.events.has(id), evId)) && (await st(a, () => ChordApp.Store.songs.size === BUILTIN.songs.length)), 'deleting the copy leaves the original gig and the library alone');
   });
 
   let newSongId = null;
@@ -255,7 +257,8 @@ async function fitsWidth(p, w) {
     await a.goto(FILE + '#data'); await sleep(300);
     const [dl] = await Promise.all([a.waitForEvent('download'), a.click('#bk-save')]);
     const file = await dl.path(); const text = fs.readFileSync(file, 'utf8'); const data = JSON.parse(text);
-    ok(data.format === 'chordscroll-backup' && data.songs.length === 14 && data.events.length === 2, `backup has ${data.songs.length} songs, ${data.events.length} gigs, ${data.items.length} items`);
+    const base = await st(a, () => ({ songs: BUILTIN.songs.length, events: BUILTIN.events.length }));
+    ok(data.format === 'chordscroll-backup' && data.songs.length === base.songs + 2 && data.events.length === base.events + 1, `backup has ${data.songs.length} songs, ${data.events.length} gigs, ${data.items.length} items`);
     // lose the gig, then merge it back
     await a.evaluate(id => deleteEvent(id), evId); await sleep(300);
     await a.setInputFiles('#rs-file', { name: 'b.json', mimeType: 'application/json', buffer: Buffer.from(text) }); await sleep(300);
@@ -268,7 +271,7 @@ async function fitsWidth(p, w) {
     ok(await a.isDisabled('.scrim [data-a="replace"]'), 'replace stays locked until “แทนที่” is typed');
     await a.fill('#rs-confirm', 'แทนที่'); await a.click('.scrim [data-a="replace"]'); await sleep(1500);
     const names = await st(a, () => [...ChordApp.Store.events.values()].map(e => e.name));
-    ok(!names.includes('งานชั่วคราว') && names.length === 2, 'replace makes the data match the file exactly ' + JSON.stringify(names));
+    ok(!names.includes('งานชั่วคราว') && names.length === data.events.length, 'replace makes the data match the file exactly ' + JSON.stringify(names));
     await a.setInputFiles('#rs-file', { name: 'x.json', mimeType: 'application/json', buffer: Buffer.from('{oops') }); await sleep(300);
     ok((await a.textContent('.toast')).includes('JSON'), 'a broken file is refused before anything changes');
   });
@@ -301,7 +304,7 @@ async function fitsWidth(p, w) {
     ok(await st(owner, () => ChordApp.Store.mode === 'shared'), 'runs on the shared database');
     ok(await owner.isVisible('#seed'), 'empty database offers the starter songs');
     await owner.click('#seed'); await sleep(1500);
-    ok(await st(owner, () => ChordApp.Store.songs.size === 12 && ChordApp.Store.items.size === 12), 'starter songs and ITD gig written to the shared database');
+    ok(await st(owner, () => ChordApp.Store.songs.size === BUILTIN.songs.length && ChordApp.Store.items.size === BUILTIN.items.length && ChordApp.Store.events.size === 2), 'starter songs and both gigs written to the shared database');
   });
 
   // a picture to "upload": screenshot of a small chord sheet drawn in the page

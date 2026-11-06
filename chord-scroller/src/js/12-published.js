@@ -9,6 +9,10 @@ const PUBLISH = typeof PUBLISH_CONFIG !== "undefined" ? PUBLISH_CONFIG : null;  
 const PUB_FILE = "band-data.json";
 const Published = { at: null, songs: 0, events: 0, error: null, lastCheck: 0, lastResult: null };
 const META_KEYS = new Set(["rev", "createdAt", "updatedAt", "updatedBy", "setsRev", "id"]);
+// rows of the first starter gig (ITD, now “เบรค 2”) as devices got them before the band's lists were
+// rearranged; a device that never took a published copy still has them and the new copy replaces them
+const STARTER_V1_ROWS = ["i95fcff2a582", "ifafc2909efa", "i987da13d3ca", "ifbc0ca79ab6", "i54bbfc02e32", "i5eeaae54954",
+  "i650deff0208", "i890a913438a", "id13f10e88e8", "i8332cb86b39", "idd9759041cd", "i734a00f1b79"];
 const contentKey = o => JSON.stringify(sortKeys(Object.fromEntries(Object.entries(o || {}).filter(([k]) => !META_KEYS.has(k)))));
 const publishedOn = () => Store.mode === "device" && /^https?:$/.test(location.protocol);
 
@@ -39,7 +43,7 @@ async function syncPublished({ force = false } = {}) {
   const res = await applyRestore(todo, false, { quiet: true });
 
   // removed by the band since the last copy this device took
-  const prev = (seen && seen.ids) || { songs: [], events: [], items: [] };
+  const prev = (seen && seen.ids) || { songs: [], events: [], items: STARTER_V1_ROWS };
   const nowIds = { songs: new Set(r.songs.map(x => x.id)), events: new Set(r.events.map(x => x.id)), items: new Set(r.items.map(x => x.id)) };
   let removed = 0;
   for (const c of ["items", "events", "songs"]) for (const id of prev[c] || []) {

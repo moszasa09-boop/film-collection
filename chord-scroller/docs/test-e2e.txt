@@ -1,4 +1,4 @@
-PASS [device] first open copies the 12 starter songs and the ITD gig {"songs":12,"events":1,"items":12,"mode":"device"}
+PASS [device] first open copies the starter songs and gigs (เบรค 1, เบรค 2) {"songs":19,"events":2,"items":22,"mode":"device"}
 PASS [device] status says data is kept on this device
 PASS [device] empty gig name is refused
 PASS [device] show length 0 minutes is refused
@@ -9,8 +9,8 @@ PASS [device] four songs placed in the gig ห้ามใจ, ก่อนต�
 PASS [device] picker warns a song is already in the gig
 PASS [device] gig shows count, total time and planned minutes
 PASS [device] negative BPM refused
-PASS [device] key +2, capo 2, BPM 100, singer and note saved on this gig {"eventId":"q2omon0jaumn","setId":"wb2kudcgwx2y","songId":"sd0631e0d315","order":1000,"shift":2,"capo":2,"bpm":100,"singer":"โม","note":"เริ่มช้า ๆ","updatedAt":1793958411090,"updatedBy":null,"id":"z3jlzd9jeqzh"}
-PASS [device] the same song in ITD keeps its own settings
+PASS [device] key +2, capo 2, BPM 100, singer and note saved on this gig {"eventId":"yauyq4y0saqk","setId":"7sxbhhzc7ihj","songId":"sd0631e0d315","order":1000,"shift":2,"capo":2,"bpm":100,"singer":"โม","note":"เริ่มช้า ๆ","updatedAt":1793961225337,"updatedBy":null,"id":"hgbuyedlfwdn"}
+PASS [device] the same song in เบรค 2 keeps its own settings
 PASS [device] row shows the gig key F#m and capo
 PASS [device] dragged 3rd song to the top: ห้ามใจ / ฝากที / คุกเข่า / ก่อนตาย → คุกเข่า / ห้ามใจ / ฝากที / ก่อนตาย
 PASS [device] dragged a song into the other set [2,2]
@@ -30,14 +30,14 @@ PASS [device] next-song button opens the next song
 PASS [device] BPM changed in the player is saved to this gig item
 PASS [device] stage mode turns on
 PASS [device] 320px home fits: 
-PASS [device] 320px #event-q2omon0jaumn fits: 
-PASS [device] 320px #play-q2omon0jaumn-z3jlzd9jeqzh fits: 
+PASS [device] 320px #event-yauyq4y0saqk fits: 
+PASS [device] 320px #play-yauyq4y0saqk-hgbuyedlfwdn fits: 
 PASS [device] 320px #library fits: 
 PASS [device] 320px #data fits: 
 PASS [device] 320px #new-text fits: 
 PASS [device] 360px home fits: 
-PASS [device] 360px #event-q2omon0jaumn fits: 
-PASS [device] 360px #play-q2omon0jaumn-z3jlzd9jeqzh fits: 
+PASS [device] 360px #event-yauyq4y0saqk fits: 
+PASS [device] 360px #play-yauyq4y0saqk-hgbuyedlfwdn fits: 
 PASS [device] 360px #library fits: 
 PASS [device] 360px #data fits: 
 PASS [device] 360px #new-text fits: 
@@ -62,10 +62,10 @@ PASS [device] edits to different songs from two tabs both survive ["แท็บ
 PASS [device] tab A is told someone saved this song
 PASS [device] saving over it opens the conflict choice
 PASS [device] both versions kept, nothing lost
-PASS [device] backup has 14 songs, 2 gigs, 16 items
+PASS [device] backup has 21 songs, 3 gigs, 26 items
 PASS [device] merge brings the deleted gig back with its 4 songs
 PASS [device] replace stays locked until “แทนที่” is typed
-PASS [device] replace makes the data match the file exactly ["ITD","งานแต่ง ธ.ค."]
+PASS [device] replace makes the data match the file exactly ["เบรค 1","เบรค 2","งานแต่ง ธ.ค."]
 PASS [device] a broken file is refused before anything changes
 PASS [device] status pill reports the failed save instead of “saved”
 PASS [device] nothing pretends to be saved
@@ -73,7 +73,7 @@ PASS [device] retry saves it once space is back
 PASS [device] no script errors: 
 PASS [shared] runs on the shared database
 PASS [shared] empty database offers the starter songs
-PASS [shared] starter songs and ITD gig written to the shared database
+PASS [shared] starter songs and both gigs written to the shared database
 PASS [shared] two pictures queued
 PASS [shared] pictures can be reordered
 PASS [shared] shows reading progress with a stop button
