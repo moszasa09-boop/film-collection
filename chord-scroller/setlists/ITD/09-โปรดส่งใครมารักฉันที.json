@@ -381,13 +381,20 @@
     "G",
     "G",
     "C",
-    "C",
+    "C"
+   ],
+   "note": "( 2 Times )"
+  },
+  {
+   "type": "instru",
+   "label": "",
+   "bars": [
     "C",
     "C",
     "C",
     "C"
    ],
-   "note": "( 2 Times ) — applies to first row G|G|C|C; second row C|C|C|C"
+   "note": ""
   },
   {
    "type": "lines",

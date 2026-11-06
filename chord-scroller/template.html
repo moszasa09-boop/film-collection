@@ -199,6 +199,7 @@ const store = {
 };
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const $ = id => document.getElementById(id);
+const inside = (t, sel) => !!(t && t.closest && t.closest(sel));
 const reduceMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 /* ---------- chords ---------- */
@@ -450,7 +451,7 @@ function renderSong(gi, i) {
   seek.addEventListener("input", () => { dragging = true; seekTo(total * seek.value / 1000, false); });
   seek.addEventListener("change", () => { dragging = false; });
   $("sheet").addEventListener("click", e => {
-    const ln = e.target.closest(".line"); if (!ln) return;
+    const ln = inside(e.target, ".line") ? e.target.closest(".line") : null; if (!ln) return;
     const k = rows.indexOf(ln); if (k < 0) return;
     cur = k; elapsed = 0; countBeats = 0; scrollToRow(k); paint();
   });
@@ -624,21 +625,29 @@ function userScrollEnd(delay) {
     lastT = performance.now(); paint();
   }, delay);
 }
-window.addEventListener("touchstart", e => { if (!e.target.closest(".player, .bar")) userScrollStart(); }, { passive: true });
+window.addEventListener("touchstart", e => { if (!inside(e.target, ".player, .bar")) userScrollStart(); }, { passive: true });
 window.addEventListener("touchend", () => { if (userScrolling) userScrollEnd(900); }, { passive: true });
+window.addEventListener("touchcancel", () => { if (userScrolling) userScrollEnd(900); }, { passive: true });
 window.addEventListener("wheel", () => { userScrollStart(); userScrollEnd(500); }, { passive: true });
 window.addEventListener("scroll", () => {
   if (view == null || playing || performance.now() < autoScrollUntil) return;
   const k = rowAtScroll(); if (k !== cur) { cur = k; elapsed = 0; paint(); }
 }, { passive: true });
-window.addEventListener("resize", () => { if (view != null) { measure(); scrollToRow(cur, true); } });
+let lastWidth = window.innerWidth;
+window.addEventListener("resize", () => {
+  if (view == null) return;
+  const widthChanged = window.innerWidth !== lastWidth; lastWidth = window.innerWidth;
+  measure();
+  if (widthChanged && !userScrolling) scrollToRow(cur, true); // text re-wrapped: put the current line back on the playhead
+});
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && playing) lockScreen(); });
 document.addEventListener("keydown", e => {
-  if (view == null || e.target.closest("input, textarea")) return;
-  if (e.code === "Space") { e.preventDefault(); toggle(); }
+  if (view == null || inside(e.target, "input, textarea")) return;
+  if (e.code === "Space") { e.preventDefault(); if (e.repeat) return; if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); toggle(); }
   else if (e.key === "ArrowDown") { e.preventDefault(); cur = Math.min(rows.length - 1, cur + 1); elapsed = 0; scrollToRow(cur); paint(); }
   else if (e.key === "ArrowUp") { e.preventDefault(); cur = Math.max(0, cur - 1); elapsed = 0; scrollToRow(cur); paint(); }
 });
+document.addEventListener("keyup", e => { if (view != null && e.code === "Space" && inside(e.target, "button")) e.preventDefault(); });
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { if (view != null) { measure(); scrollToRow(cur, true); } });
 
 function route() {
