@@ -22,6 +22,9 @@ def h(text, n=11):
 
 def load_builtin():
     songs, events, items, seen = [], [], [], {}
+    # a file that holds only {"id": ...} (and "ref": true) points at a song stored in another folder,
+    # so one song can be in several gigs without copying it
+    refs = []
     for folder in sorted(os.listdir(SETS_DIR)):
         path = os.path.join(SETS_DIR, folder)
         if not os.path.isdir(path):
@@ -38,19 +41,38 @@ def load_builtin():
             "sets": [{"id": set_id, "name": "เซ็ตหลัก"}],
         })
         files = sorted(f for f in os.listdir(path) if f.endswith(".json") and not f.startswith("_"))
+        folder_ids = []
         for n, f in enumerate(files, 1):
             with open(os.path.join(path, f), encoding="utf-8") as fh:
                 song = json.load(fh)
             sid = song.get("id")
             if not sid or not ID_RE.match(sid):
                 sys.exit(f"{folder}/{f}: missing or bad \"id\" (use 4-40 lowercase letters/digits)")
-            if sid in seen and seen[sid] != song:
-                sys.exit(f"{folder}/{f}: id {sid} is already used by another song")
-            if sid not in seen:
-                seen[sid] = song
-                songs.append(song)
-            items.append({"id": "i" + h(event_id + ":" + sid + ":" + str(n)), "eventId": event_id, "setId": set_id,
-                          "songId": sid, "order": n * 1000, "shift": 0, "capo": 0, "bpm": None, "singer": "", "note": ""})
+            if song.get("ref"):
+                refs.append((folder, f, sid))
+            else:
+                if sid in seen and seen[sid] != song:
+                    sys.exit(f"{folder}/{f}: id {sid} is already used by another song")
+                if sid not in seen:
+                    seen[sid] = song
+                    songs.append(song)
+            folder_ids.append(sid)
+        # order and per-gig settings: "rows" in _event.json, else file-name order.
+        # Row ids depend on the gig and the song only (not the position), so reordering keeps them.
+        rows = meta.get("rows") or [{"song": sid} for sid in folder_ids]
+        count = {}
+        for n, row in enumerate(rows, 1):
+            sid = row["song"]
+            if sid not in folder_ids:
+                sys.exit(f"{folder}/_event.json: row {n} names song {sid}, which has no file in this folder")
+            count[sid] = count.get(sid, 0) + 1
+            iid = "i" + h(event_id + ":" + sid + ("" if count[sid] == 1 else ":" + str(count[sid])))
+            items.append({"id": iid, "eventId": event_id, "setId": set_id, "songId": sid, "order": n * 1000,
+                          "shift": row.get("shift", 0), "capo": row.get("capo", 0), "bpm": row.get("bpm"),
+                          "singer": row.get("singer", ""), "note": row.get("note", "")})
+    for folder, f, sid in refs:
+        if sid not in seen:
+            sys.exit(f"{folder}/{f}: points at song {sid}, which no folder contains")
     return {"songs": songs, "events": events, "items": items}
 
 

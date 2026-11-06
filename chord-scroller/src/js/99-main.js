@@ -29,7 +29,10 @@ function route() {
     case "edit": return renderEditor("edit", r.a);
     case "new": return renderEditor(r.a === "image" ? "image" : "text");
     case "legacy": {
-      const ev = BUILTIN.events[r.a - 1], it = ev && Store.events.has(ev.id) && eventItems(ev.id)[r.b - 1];
+      // the first version had one set (ITD, now “เบรค 2”); old links point into it by position
+      const LEGACY = ["e9adc0d877e2"];
+      const ev = BUILTIN.events.find(e => e.id === LEGACY[r.a - 1]) || BUILTIN.events[r.a - 1];
+      const it = ev && Store.events.has(ev.id) && eventItems(ev.id).filter(i => !isBreak(i))[r.b - 1];
       if (it) { location.replace("#play-" + ev.id + "-" + it.id); return; }
       if (!Store.fresh && Store.mode !== "device") { app.innerHTML = header({ title: "คอร์ดเลื่อนตามเพลง" }) + `<main class="wrap"><p class="empty">กำลังโหลด…</p></main>`; return; }
       location.replace("#"); return;
