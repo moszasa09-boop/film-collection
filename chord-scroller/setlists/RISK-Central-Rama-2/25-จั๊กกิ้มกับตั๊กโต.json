@@ -4,7 +4,7 @@
  "artist": "วงตั๊กโต อาร์ สยาม",
  "bpm": 160,
  "source": "pdf",
- "sourceCheck": "unchecked",
+ "sourceCheck": "matched",
  "musicCheck": "unchecked",
  "blocks": [
   {

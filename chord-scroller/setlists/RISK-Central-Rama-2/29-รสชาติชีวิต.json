@@ -4,7 +4,7 @@
  "artist": "Little John",
  "bpm": 135,
  "source": "pdf",
- "sourceCheck": "unchecked",
+ "sourceCheck": "matched",
  "musicCheck": "unchecked",
  "blocks": [
   {

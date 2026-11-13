@@ -4,7 +4,7 @@
  "artist": "TaitosmitH",
  "bpm": 150,
  "source": "pdf",
- "sourceCheck": "unchecked",
+ "sourceCheck": "matched",
  "musicCheck": "unchecked",
  "blocks": [
   {
