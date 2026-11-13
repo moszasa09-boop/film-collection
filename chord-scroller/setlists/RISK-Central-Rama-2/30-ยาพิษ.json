@@ -4,7 +4,7 @@
  "artist": "Bodyslam",
  "bpm": 175,
  "source": "pdf",
- "sourceCheck": "unchecked",
+ "sourceCheck": "matched",
  "musicCheck": "unchecked",
  "blocks": [
   {
