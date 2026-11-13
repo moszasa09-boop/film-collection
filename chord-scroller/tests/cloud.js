@@ -51,7 +51,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     await step('owner signs in and creates the band', async () => {
       await O.page.goto(BASE); await sleep(900);
       const m0 = await mode(O.page);
-      ok(m0.mode === 'device' && m0.songs === m0.want.songs && m0.events === 2, 'before signing in, the app works on this device with the starter songs');
+      ok(m0.mode === 'device' && m0.songs === m0.want.songs && m0.events === m0.want.events, 'before signing in, the app works on this device with the starter songs');
       ok(await O.page.isVisible('[data-signin]'), 'offers to sign in to work with the band');
       await signIn(O.page, 'owner@band.test');
       ok((await O.page.textContent('main')).includes('ยังไม่มีวง'), 'signed in without a band: asks to create one or use an invite');
@@ -150,7 +150,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
       await E.ctx.setOffline(true);
       await E.page.reload(); await sleep(1800);
       const m = await mode(E.page);
-      ok(m.mode === 'cloud' && m.events >= 2 && m.songs >= m.want.songs, 'band data comes from this phone’s copy');
+      ok(m.mode === 'cloud' && m.events >= m.want.events && m.songs >= m.want.songs, 'band data comes from this phone’s copy');
       ok((await E.page.textContent('#sync')).includes('ออฟไลน์'), 'status says offline');
       const first = await S(E.page, id => eventItems(id).find(i => !isBreak(i)).id, ITD());
       await E.page.goto(BASE + `#play-${ITD()}-${first}`); await sleep(500);

@@ -304,7 +304,7 @@ async function fitsWidth(p, w) {
     ok(await st(owner, () => ChordApp.Store.mode === 'shared'), 'runs on the shared database');
     ok(await owner.isVisible('#seed'), 'empty database offers the starter songs');
     await owner.click('#seed'); await sleep(1500);
-    ok(await st(owner, () => ChordApp.Store.songs.size === BUILTIN.songs.length && ChordApp.Store.items.size === BUILTIN.items.length && ChordApp.Store.events.size === 2), 'starter songs and both gigs written to the shared database');
+    ok(await st(owner, () => ChordApp.Store.songs.size === BUILTIN.songs.length && ChordApp.Store.items.size === BUILTIN.items.length && ChordApp.Store.events.size === BUILTIN.events.length), 'starter songs and gigs written to the shared database');
   });
 
   // a picture to "upload": screenshot of a small chord sheet drawn in the page

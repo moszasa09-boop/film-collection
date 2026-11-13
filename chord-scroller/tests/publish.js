@@ -44,11 +44,11 @@ const content = p => p.evaluate(() => {
           const rows = id => [...ChordApp.Store.items.values()].filter(i => i.eventId === id).sort((a, b) => a.order - b.order)
             .map(i => [i.id, i.songId, i.singer].join('|')).join('\n');
           const want = id => BUILTIN.items.filter(i => i.eventId === id).map(i => [i.id, i.songId, i.singer].join('|')).join('\n');
-          return { names: [...ChordApp.Store.events.values()].map(e => e.name).sort().join(), b1: rows('eegvb5kgmdw9') === want('eegvb5kgmdw9'),
+          return { names: [...ChordApp.Store.events.values()].map(e => e.name).sort().join(), wantNames: BUILTIN.events.map(e => e.name).sort().join(), b1: rows('eegvb5kgmdw9') === want('eegvb5kgmdw9'),
             b2: rows('e9adc0d877e2') === want('e9adc0d877e2'), items: ChordApp.Store.items.size, wantItems: BUILTIN.items.length,
             songs: ChordApp.Store.songs.size, wantSongs: BUILTIN.songs.length, fakthi: ChordApp.Store.songs.get('sf22531604bf').title };
         });
-        ok(r.names === 'เบรค 1,เบรค 2', `${name}: the gigs are now เบรค 1 and เบรค 2 (${r.names})`);
+        ok(r.names === r.wantNames && r.names.includes('เบรค 1') && !r.names.includes('ITD'), `${name}: the gigs are now the band’s current ones (${r.names})`);
         ok(r.b1 && r.b2 && r.items === r.wantItems, `${name}: both breaks have exactly the band’s songs, order and singers, no left-over ITD rows (${r.items} rows)`);
         ok(r.songs === r.wantSongs && r.fakthi === 'ฝากที', `${name}: all ${r.wantSongs} songs, with the band’s version of each`);
       }
@@ -59,7 +59,7 @@ const content = p => p.evaluate(() => {
     await step('first open', async () => {
       await A.goto(URL0); await B.goto(URL0); await sleep(1500);
       ok(await content(A) === await content(B), 'two devices that never talked to each other show the same gigs and songs');
-      ok(await A.evaluate(() => ChordApp.Store.songs.size === BUILTIN.songs.length && ChordApp.Store.events.size === 2 && Published.at !== null), 'the band’s published copy was loaded');
+      ok(await A.evaluate(() => ChordApp.Store.songs.size === BUILTIN.songs.length && ChordApp.Store.events.size === BUILTIN.events.length && Published.at !== null), 'the band’s published copy was loaded');
     });
 
     const pub = JSON.parse(fs.readFileSync(path.join(DIR, 'band-data.json'), 'utf8'));
@@ -82,7 +82,7 @@ const content = p => p.evaluate(() => {
       const a = await A.evaluate(id => ({ title: ChordApp.Store.songs.get(id).title, events: [...ChordApp.Store.events.values()].map(e => e.name).sort() }), song0.id);
       const b = await B.evaluate(id => ({ title: ChordApp.Store.songs.get(id).title, events: [...ChordApp.Store.events.values()].map(e => e.name).sort() }), song0.id);
       ok(a.title === 'ชื่อใหม่จากวง' && b.title === 'ชื่อใหม่จากวง', 'renamed song shows the band’s name on both devices');
-      ok(!a.events.some(n => /^เบรค/.test(n)) && !b.events.some(n => /^เบรค/.test(n)), 'the gigs the band removed are gone on both devices');
+      ok(!a.events.some(n => /^(เบรค|RISK)/.test(n)) && !b.events.some(n => /^(เบรค|RISK)/.test(n)), 'the gigs the band removed are gone on both devices');
       ok(a.events.includes('งานแต่ง 20 ธ.ค.') && b.events.includes('งานแต่ง 20 ธ.ค.'), 'the new gig is on both devices');
       ok(b.events.includes('งานของ B เอง') && !a.events.includes('งานของ B เอง'), 'a gig B made only on its own device stays on B');
       const row = await A.evaluate(() => ChordApp.Store.items.get('row000000001'));

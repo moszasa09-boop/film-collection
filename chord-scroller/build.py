@@ -4,7 +4,8 @@
     python3 build.py --artifact   -> chords.html (the same app without the <html>/<head> wrapper, for claude.ai)
 
 Each folder in setlists/ becomes a starter gig (one set, songs in file-name order: 01-, 02-, ...).
-An optional _event.json in the folder sets {"name", "date", "venue", "note", "slotMinutes"}.
+An optional _event.json in the folder sets {"name", "date", "venue", "note", "slotMinutes"}, the order and
+per-gig settings ("rows"), and several sets in one gig ("sets": [{"id", "name"}], each row naming its "set").
 Every song file needs a permanent "id" (letters/digits); the build stops if one is missing or repeated,
 so ids never change when files are renamed or reordered.
 """
@@ -34,11 +35,12 @@ def load_builtin():
             with open(os.path.join(path, "_event.json"), encoding="utf-8") as fh:
                 meta = json.load(fh)
         event_id = meta.get("id") or "e" + h("setlist:" + folder)
-        set_id = "main"
+        sets = meta.get("sets") or [{"id": "main", "name": "เซ็ตหลัก"}]
+        set_ids = [x["id"] for x in sets]
         events.append({
             "id": event_id, "name": meta.get("name", folder), "date": meta.get("date", ""),
             "venue": meta.get("venue", ""), "note": meta.get("note", ""), "slotMinutes": meta.get("slotMinutes"),
-            "sets": [{"id": set_id, "name": "เซ็ตหลัก"}],
+            "sets": [{"id": x["id"], "name": x["name"]} for x in sets],
         })
         files = sorted(f for f in os.listdir(path) if f.endswith(".json") and not f.startswith("_"))
         folder_ids = []
@@ -63,6 +65,9 @@ def load_builtin():
         count = {}
         for n, row in enumerate(rows, 1):
             sid = row["song"]
+            set_id = row.get("set", set_ids[0])
+            if set_id not in set_ids:
+                sys.exit(f"{folder}/_event.json: row {n} names set {set_id}, which is not in \"sets\"")
             if sid not in folder_ids:
                 sys.exit(f"{folder}/_event.json: row {n} names song {sid}, which has no file in this folder")
             count[sid] = count.get(sid, 0) + 1

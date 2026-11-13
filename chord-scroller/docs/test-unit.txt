@@ -1,3 +1,16 @@
+PASS round trip กลัวลืม
+PASS round trip ขอ
+PASS round trip Circle
+PASS round trip ช่างมัน
+PASS round trip ยื้อ
+PASS round trip จี๊จ๊ะ
+PASS round trip เจ็บจุงเบย
+PASS round trip โคโยตี้
+PASS round trip จั๊กกิ้มกับตั๊กโต
+PASS round trip รสชาติชีวิต
+PASS round trip ยาพิษ
+PASS round trip คิดฮอด
+PASS round trip จันทร์เจ้า
 PASS round trip 9 นาฬิกา
 PASS round trip ขี้หึง
 PASS round trip ฝากที
@@ -18,6 +31,7 @@ PASS round trip กระเป๋าแบนแฟนยิ้ม
 PASS round trip อ๊อด อ๊อด
 PASS round trip ยินดีที่ไม่รู้จัก
 PASS all starter chords recognised 
+PASS RISK gig has 3 breaks of 8, 9, 15 songs 8,9,15
 PASS chord Am
 PASS chord C#m7
 PASS chord D/F#
@@ -67,4 +81,4 @@ PASS bad BPM falls back to 80
 PASS backup: non-JSON rejected
 PASS backup: other format rejected
 PASS backup: bad entries skipped and values clamped ["ข้ามเพลงที่ข้อมูลไม่ครบ: b","ข้ามเพลงที่ข้อมูลไม่ครบ: ok2","ข้ามรายการที่อ้างถึงงานหรือเพลงที่ไม่มีในไฟล์"]
-ALL 69 PASSED
+ALL 83 PASSED

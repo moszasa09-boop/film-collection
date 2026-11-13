@@ -1,0 +1,15 @@
+{
+ "id": "s8z91aufn3d6",
+ "title": "ยื้อ",
+ "artist": "Potato",
+ "bpm": 167,
+ "source": "list",
+ "sourceCheck": "unchecked",
+ "musicCheck": "unchecked",
+ "blocks": [
+  {
+   "type": "note",
+   "text": "ยังไม่มีชีทคอร์ดของเพลงนี้ เพิ่มได้ที่ “แก้เนื้อเพลง/คอร์ด” (พิมพ์ วาง หรืออ่านจากรูป)"
+  }
+ ]
+}

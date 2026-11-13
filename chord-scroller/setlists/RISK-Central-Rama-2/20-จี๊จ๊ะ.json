@@ -1,0 +1,15 @@
+{
+ "id": "syrm4utwtd3v",
+ "title": "จี๊จ๊ะ",
+ "artist": "Silly Fools",
+ "bpm": 128,
+ "source": "list",
+ "sourceCheck": "unchecked",
+ "musicCheck": "unchecked",
+ "blocks": [
+  {
+   "type": "note",
+   "text": "ยังไม่มีชีทคอร์ดของเพลงนี้ เพิ่มได้ที่ “แก้เนื้อเพลง/คอร์ด” (พิมพ์ วาง หรืออ่านจากรูป)"
+  }
+ ]
+}

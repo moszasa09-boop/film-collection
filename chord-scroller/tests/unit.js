@@ -29,6 +29,10 @@ const file = 'file://' + path.resolve(__dirname, '../index.html');
       if (b.type === "lines") b.lines.forEach(l => l.forEach(([c]) => { if (c && !A.isChord(c)) bad.push(c); }));
     }
     ok(!bad.length, "all starter chords recognised " + bad.join(","));
+    // the RISK @Central Rama 2 gig: 3 breaks of 8, 9 and 15 songs, no song twice
+    const risk = BUILTIN.items.filter(i => i.eventId === "erisk13nov26");
+    const per = ["b1", "b2", "b3"].map(id => risk.filter(i => i.setId === id).length).join(",");
+    ok(BUILTIN.events.find(e => e.id === "erisk13nov26").sets.map(x => x.name).join() === "เบรค 1,เบรค 2,เบรค 3" && per === "8,9,15" && new Set(risk.map(i => i.songId)).size === 32, "RISK gig has 3 breaks of 8, 9, 15 songs " + per);
     for (const c of ["Am", "C#m7", "D/F#", "Bbmaj7", "Gsus4", "Cadd9", "E7b9", "F#m7b5", "Bdim", "Caug", "(C)", "Am?", "DmM7", "G#/C"]) ok(A.isChord(c), "chord " + c);
     for (const c of ["H", "Cm#x", "ไม่", "C/", "Am7?x", "hello", "C##"]) ok(!A.isChord(c), "not a chord " + c);
     // 3. transposition

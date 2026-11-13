@@ -3,7 +3,7 @@ PASS [sign-in] offers to sign in to work with the band
 PASS [sign-in] signed in without a band: asks to create one or use an invite
 PASS [sign-in] offers to bring this device’s songs into the new band
 PASS [sign-in] now working on the band as its owner
-PASS [sign-in] this device’s 19 songs and both starter gigs were copied up (43 documents)
+PASS [sign-in] this device’s 32 songs and both starter gigs were copied up (89 documents)
 PASS [sign-in] status says synced with the band
 PASS [sign-in] one editor link and one viewer link
 PASS [sign-in] owner sees the active links with copy and cancel
