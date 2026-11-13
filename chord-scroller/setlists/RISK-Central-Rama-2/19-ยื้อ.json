@@ -4,7 +4,7 @@
  "artist": "Potato",
  "bpm": 167,
  "source": "pdf",
- "sourceCheck": "unchecked",
+ "sourceCheck": "matched",
  "musicCheck": "unchecked",
  "blocks": [
   {
