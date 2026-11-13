@@ -1,0 +1,217 @@
+{
+ "id": "erisk13nov26",
+ "name": "RISK @Central Rama 2",
+ "date": "2026-11-13",
+ "venue": "Central Rama 2",
+ "sets": [
+  {
+   "id": "b1",
+   "name": "เบรค 1"
+  },
+  {
+   "id": "b2",
+   "name": "เบรค 2"
+  },
+  {
+   "id": "b3",
+   "name": "เบรค 3"
+  }
+ ],
+ "rows": [
+  {
+   "song": "s820c2f20e69",
+   "set": "b1",
+   "singer": "คิง",
+   "bpm": 172
+  },
+  {
+   "song": "sd10785debda",
+   "set": "b1",
+   "singer": "มอส",
+   "bpm": 128
+  },
+  {
+   "song": "sejcy84l5e2n",
+   "set": "b1",
+   "singer": "มอส",
+   "bpm": 126
+  },
+  {
+   "song": "sglsjpftel63",
+   "set": "b1",
+   "singer": "คิง",
+   "bpm": 100
+  },
+  {
+   "song": "sq4665u99a6z",
+   "set": "b1",
+   "singer": "คิง",
+   "bpm": 150,
+   "note": "BPM จากเวอร์ชัน The Collection ถ้าเล่นเวอร์ชัน TMD ควรเช็กอีกที"
+  },
+  {
+   "song": "s049e95c4e58",
+   "set": "b1",
+   "singer": "มอส",
+   "bpm": 134
+  },
+  {
+   "song": "sqgcdk472zpr",
+   "set": "b1",
+   "singer": "มอส",
+   "bpm": 170
+  },
+  {
+   "song": "s32vyeprzcll",
+   "set": "b1",
+   "singer": "คิง",
+   "bpm": 143
+  },
+  {
+   "song": "s1h9mhnfjt8n",
+   "set": "b2",
+   "singer": "คิง",
+   "bpm": 96
+  },
+  {
+   "song": "s9bsw4qs0dff",
+   "set": "b2",
+   "singer": "มอส",
+   "bpm": 110
+  },
+  {
+   "song": "sfd66f357fb3",
+   "set": "b2",
+   "singer": "มอส",
+   "bpm": 104
+  },
+  {
+   "song": "sjbjlxmt982c",
+   "set": "b2",
+   "singer": "คิง",
+   "bpm": 116
+  },
+  {
+   "song": "s4b0483f60ce",
+   "set": "b2",
+   "singer": "คิง",
+   "bpm": 78
+  },
+  {
+   "song": "sgmv57qydlut",
+   "set": "b2",
+   "singer": "คิง",
+   "bpm": null
+  },
+  {
+   "song": "sf22531604bf",
+   "set": "b2",
+   "singer": "คิง",
+   "bpm": 118
+  },
+  {
+   "song": "sy2jqu11vkyw",
+   "set": "b2",
+   "singer": "มอส",
+   "bpm": 117
+  },
+  {
+   "song": "se8568be728d",
+   "set": "b2",
+   "singer": "มอส",
+   "bpm": 135
+  },
+  {
+   "song": "sd0631e0d315",
+   "set": "b3",
+   "singer": "คิง (ร้องหลัก)",
+   "bpm": 178,
+   "note": "ครึ่งจังหวะ = 89"
+  },
+  {
+   "song": "s8z91aufn3d6",
+   "set": "b3",
+   "singer": "คิง, มอส",
+   "bpm": 167
+  },
+  {
+   "song": "syrm4utwtd3v",
+   "set": "b3",
+   "singer": "คิง",
+   "bpm": 128
+  },
+  {
+   "song": "s46d458c51ed",
+   "set": "b3",
+   "singer": "มอส",
+   "bpm": 150
+  },
+  {
+   "song": "s6cl56lqr6im",
+   "set": "b3",
+   "singer": "คิง",
+   "bpm": 157
+  },
+  {
+   "song": "sfxw6mllluvb",
+   "set": "b3",
+   "singer": "มอส",
+   "bpm": 150
+  },
+  {
+   "song": "sbd2fea5c57e",
+   "set": "b3",
+   "singer": "มอส",
+   "bpm": 130
+  },
+  {
+   "song": "sd7mgb3xj3mg",
+   "set": "b3",
+   "singer": "คิง",
+   "bpm": 160
+  },
+  {
+   "song": "sa6f94ab0d4b",
+   "set": "b3",
+   "singer": "คิง",
+   "bpm": 102
+  },
+  {
+   "song": "sd87e299bf45",
+   "set": "b3",
+   "singer": "คิง",
+   "bpm": 182
+  },
+  {
+   "song": "s4z4de0ds77c",
+   "set": "b3",
+   "singer": "คิง",
+   "bpm": 160
+  },
+  {
+   "song": "sovtwnhlh8cm",
+   "set": "b3",
+   "singer": "มอส",
+   "bpm": 135
+  },
+  {
+   "song": "s3jrciw8usw6",
+   "set": "b3",
+   "singer": "คิง (ร้องหลัก), มอส (เสริม)",
+   "bpm": 175
+  },
+  {
+   "song": "sp7eyth7jawq",
+   "set": "b3",
+   "singer": "",
+   "bpm": 108,
+   "note": "ยังไม่ระบุคนร้อง"
+  },
+  {
+   "song": "sntt5em6c0vj",
+   "set": "b3",
+   "singer": "มอส",
+   "bpm": 111
+  }
+ ]
+}
