@@ -65,6 +65,8 @@ const parseTime = t => { const m = /(\d+):(\d\d)/.exec(t); return m ? +m[1] * 60
     });
     await step('mouse drag', async () => {
       const before = await order();
+      // bring the first rows of the set just under the top bar, as a person would scroll before dragging
+      await a.evaluate(() => window.scrollTo(0, document.querySelector('.set .item-row').getBoundingClientRect().top + scrollY - 70)); await sleep(200);
       const rows = await a.$$('.set:first-of-type .item-row');
       const h = await (await rows[3].$('.handle')).boundingBox(), t = await rows[0].boundingBox();
       await a.mouse.move(h.x + 10, h.y + 10); await a.mouse.down();
@@ -157,7 +159,6 @@ const parseTime = t => { const m = /(\d+):(\d\d)/.exec(t); return m ? +m[1] * 60
       const exp = await S(id => { const ev = ChordApp.Store.events.get(id); const its = eventItems(id); const songs = its.filter(i => !isBreak(i)); return songs.reduce((n, i) => n + itemSecs(i), 0) + 15 * 60 + (songs.length - 1) * 30; }, EV);
       ok(Math.abs(parseTime(/เวลารวม\s*([\d:]+)/.exec(t)[1]) - exp) <= 1, `total = songs + 15 min break + 30 s between songs (${fmt(exp)})`);
       ok(/เกิน/.test(t), 'warns that the show runs over the planned 10 minutes');
-      ok((await a.textContent('details.ready')).includes('เกินเวลางาน'), 'readiness check lists the overrun');
       ok((await a.$$('.break-row')).length === 1, 'break shows as its own row');
       const fit = await S(id => { const its = eventItems(id).filter(i => !isBreak(i)); return its.length; }, EV);
       await a.click('#ev-edit'); await a.fill('#ev-slot', '120'); await a.click('#ev-form button[type=submit]'); await sleep(300);
@@ -181,11 +182,9 @@ const parseTime = t => { const m = /(\d+):(\d\d)/.exec(t); return m ? +m[1] * 60
       const mainSet = await S(id => ChordApp.Store.events.get(id).sets[0].id, EV);
       await S(([e, s, so]) => addItems(e, s, [so]), [EV, mainSet, sid]); await sleep(300);
       await a.goto(URL0 + '#event-' + EV); await sleep(300);
-      const panel = await a.textContent('details.ready');
-      ok(panel.includes('อ่านไม่ชัด 2 จุด'), 'flags unclear chords/words');
-      ok(panel.includes('ยังไม่ตรวจกับเพลงจริง') && panel.includes('ยังไม่กำหนดนักร้อง'), 'flags songs not checked against the recording and missing singers');
-      ok(await a.isVisible('details.ready[open]'), 'panel opens by itself when something needs fixing');
-      ok(!!(await a.$('details.ready a[href^="#edit-"]')), 'each problem links to where it is fixed');
+      // the band asked for the long readiness list to go; the song rows still show their own chips
+      ok(!(await a.$('details.ready')) && !(await a.textContent('main')).includes('ตรวจความพร้อมก่อนขึ้นเวที'), 'the gig page has no readiness panel');
+      ok((await a.textContent('main')).includes('อ่านไม่ชัด'), 'a song with unclear spots is still marked on its own row');
     });
 
     section = '[history] ';

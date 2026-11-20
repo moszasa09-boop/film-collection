@@ -43,7 +43,6 @@ function renderEvent(eventId) {
       <span>พร้อมเล่น <b>${sum.ready}/${sum.count}</b></span><span>ตรวจกับเพลงจริง <b>${sum.checked}/${sum.count}</b></span></div>
     <p class="small muted" style="margin:0">เวลารวม = เพลง ${fmtTime(sum.songSecs)} + พัก ${fmtTime(sum.breakSecs)} + ระหว่างเพลง ${fmtTime(sum.gapSecs)}${ev.gapSeconds ? ` (${ev.gapSeconds} วินาที/ครั้ง)` : ""} · ความยาวเพลงประมาณจาก BPM เว้นแต่ใส่ความยาวจริงไว้</p>
     ${(() => { const o = offlineStatus(ev.id); return o ? `<div class="offline-state small" style="margin-top:10px"><span class="chip ${o.ready ? "ok" : ""}" id="offline-state">${esc(o.text)}</span><button class="btn ghost" type="button" data-offline="${esc(ev.id)}">${o.ready ? "เตรียมใหม่" : "เตรียมเล่นออฟไลน์"}</button></div>` : ""; })()}
-    ${readinessPanel(ev, all)}
     ${w ? `<div class="row" style="margin-top:10px">
       <button class="btn" type="button" id="ev-edit">แก้ไขข้อมูลงาน</button>
       <button class="btn" type="button" id="ev-addset">${ICON.plus} เพิ่มเซ็ต</button>
@@ -75,40 +74,6 @@ function breakRow(it, w) {
     <span class="t"><b>${esc(it.label || "พัก")} · ${clamp(Number(it.minutes) || 0, 0, 240)} นาที</b><span class="a">ช่วงพัก ไม่มีเพลง</span></span>
     <span class="acts">${w ? `<button class="icon-btn" type="button" data-breakmenu="${esc(it.id)}" aria-label="ตั้งค่าช่วงพัก">${ICON.more}</button>` : ""}</span>
   </div>`;
-}
-/* ---------- ready for the stage? ---------- */
-function readinessIssues(ev, all) {
-  const out = [];
-  const songs = all.filter(i => !isBreak(i));
-  if (!songs.length) out.push({ level: "bad", text: "ยังไม่มีเพลงในงาน" });
-  const sum = summarize(all, ev);
-  if (ev.slotMinutes && sum.secs > ev.slotMinutes * 60) out.push({ level: "bad", text: `เวลารวม ${fmtTime(sum.secs)} เกินเวลางาน ${ev.slotMinutes} นาที` });
-  songs.forEach((it, i) => {
-    const s = Store.songs.get(it.songId), n = `${i + 1}. ${s ? s.title : "เพลงถูกลบ"}`;
-    if (!s) { out.push({ level: "bad", text: n + ": เพลงถูกลบจากคลัง", item: it.id }); return; }
-    const st = songStats(s);
-    if (!st.lyricLines) out.push({ level: "bad", text: n + ": ไม่มีเนื้อร้อง", song: s.id });
-    if (!st.chords) out.push({ level: "bad", text: n + ": ไม่มีคอร์ด", song: s.id });
-    if (st.unclear) out.push({ level: "warn", text: `${n}: อ่านไม่ชัด ${st.unclear} จุด`, song: s.id });
-    if (s.musicCheck !== "checked") out.push({ level: "info", text: n + ": ยังไม่ตรวจกับเพลงจริง", song: s.id });
-    if (!it.singer) out.push({ level: "info", text: n + ": ยังไม่กำหนดนักร้อง", item: it.id });
-    if (!validBpm(it.bpm) && !validBpm(s.bpm)) out.push({ level: "info", text: n + ": ยังไม่ตั้ง BPM (ใช้ 80)", item: it.id });
-  });
-  const off = typeof offlineStatus === "function" ? offlineStatus(ev.id) : null;
-  if (off && !off.ready) out.push({ level: "info", text: off.text, offline: true });
-  return out;
-}
-function readinessPanel(ev, all) {
-  const list = readinessIssues(ev, all);
-  const bad = list.filter(x => x.level === "bad").length, warn = list.filter(x => x.level === "warn").length, info = list.filter(x => x.level === "info").length;
-  const head = !list.length ? `<span class="chip ok">พร้อมขึ้นเวที</span>` :
-    `${bad ? `<span class="chip bad">ต้องแก้ ${bad}</span>` : ""}${warn ? `<span class="chip warn">ควรตรวจ ${warn}</span>` : ""}${info ? `<span class="chip">ยังไม่ครบ ${info}</span>` : ""}`;
-  const w = writable();
-  return `<details class="ready" ${bad || warn ? "open" : ""}><summary><b>ตรวจความพร้อมก่อนขึ้นเวที</b> ${head}</summary>
-    ${list.length ? `<ul class="issues">${list.map(x => `<li class="${x.level === "bad" ? "err" : x.level === "warn" ? "warn" : ""}">${esc(x.text)}
-      ${w && x.song ? ` <a href="#edit-${esc(x.song)}">แก้เพลง</a>` : ""}${w && x.item ? ` <button class="btn ghost" type="button" data-itemmenu="${esc(x.item)}">ตั้งค่า</button>` : ""}${x.offline ? ` <button class="btn ghost" type="button" data-offline="${esc(ev.id)}">เตรียมออฟไลน์</button>` : ""}</li>`).join("")}</ul>`
-    : `<p class="small muted">ทุกเพลงมีเนื้อร้องและคอร์ด ไม่มีจุดอ่านไม่ชัด ตรวจกับเพลงจริงแล้ว กำหนดนักร้องครบ และไม่เกินเวลา</p>`}
-  </details>`;
 }
 function openBreakSheet(eventId, setId, itemId) {
   const it = itemId ? Store.items.get(itemId) : null;

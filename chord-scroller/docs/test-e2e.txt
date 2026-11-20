@@ -9,7 +9,7 @@ PASS [device] four songs placed in the gig ห้ามใจ, ก่อนต�
 PASS [device] picker warns a song is already in the gig
 PASS [device] gig shows count, total time and planned minutes
 PASS [device] negative BPM refused
-PASS [device] key +2, capo 2, BPM 100, singer and note saved on this gig {"eventId":"avsxh8hh9qdc","setId":"oh157yj82ysx","songId":"sd0631e0d315","order":1000,"shift":2,"capo":2,"bpm":100,"singer":"โม","note":"เริ่มช้า ๆ","updatedAt":1795169971303,"updatedBy":null,"id":"1yrdl14xmyrf"}
+PASS [device] key +2, capo 2, BPM 100, singer and note saved on this gig {"eventId":"1sfixbaj6y9c","setId":"jdzh0i00yfi1","songId":"sd0631e0d315","order":1000,"shift":2,"capo":2,"bpm":100,"singer":"โม","note":"เริ่มช้า ๆ","updatedAt":1795176554180,"updatedBy":null,"id":"mb0xz5dqdgai"}
 PASS [device] the same song in เบรค 2 keeps its own settings
 PASS [device] row shows the gig key F#m and capo
 PASS [device] dragged 3rd song to the top: ห้ามใจ / ฝากที / คุกเข่า / ก่อนตาย → คุกเข่า / ห้ามใจ / ฝากที / ก่อนตาย
@@ -21,7 +21,7 @@ PASS [device] ห้ามใจ: shows this gig's BPM 100
 PASS [device] คุกเข่า: shows this gig's BPM 68
 PASS [device] ก่อนตาย: shows this gig's BPM 76
 PASS [device] ฝากที: shows this gig's BPM 96
-PASS [device] ห้ามใจ: key F#m, capo 2 shapes Em, singer shown: Bodyslamคีย์ F#m · คาโป้ 2 จับคอร์ด Emร้อง: โมงานแต่ง ธ.ค. · เพลงที่ 1/4ยาวประมาณ 3:07
+PASS [device] ห้ามใจ: key F#m, capo 2 shapes Em, singer shown: Bodyslamคีย์ F#m · คาโป้ 2 จับคอร์ด Emร้อง: โมงานแต่ง ธ.ค. · เพลงที่ 1/4ยาวประมาณ 4:10
 PASS [device] with +2 and capo 2 the chord shapes read as written (Em)
 PASS [device] gig note shown above the song
 PASS [device] next song is named
@@ -30,16 +30,19 @@ PASS [device] next-song button opens the next song
 PASS [device] BPM changed in the player is saved to this gig item
 PASS [device] ÷2 halves the tempo in one tap and saves it 52
 PASS [device] ×2 doubles it back
+PASS [device] sheet scrolls at 75% of the tempo by default
+PASS [device] slower speed makes the song scroll longer without changing its BPM
+PASS [device] the speed is remembered
 PASS [device] stage mode turns on
 PASS [device] 320px home fits: 
-PASS [device] 320px #event-avsxh8hh9qdc fits: 
-PASS [device] 320px #play-avsxh8hh9qdc-1yrdl14xmyrf fits: 
+PASS [device] 320px #event-1sfixbaj6y9c fits: 
+PASS [device] 320px #play-1sfixbaj6y9c-mb0xz5dqdgai fits: 
 PASS [device] 320px #library fits: 
 PASS [device] 320px #data fits: 
 PASS [device] 320px #new-text fits: 
 PASS [device] 360px home fits: 
-PASS [device] 360px #event-avsxh8hh9qdc fits: 
-PASS [device] 360px #play-avsxh8hh9qdc-1yrdl14xmyrf fits: 
+PASS [device] 360px #event-1sfixbaj6y9c fits: 
+PASS [device] 360px #play-1sfixbaj6y9c-mb0xz5dqdgai fits: 
 PASS [device] 360px #library fits: 
 PASS [device] 360px #data fits: 
 PASS [device] 360px #new-text fits: 
@@ -102,4 +105,4 @@ PASS [shared] viewer sees the owner’s change
 PASS [shared] text size set by the owner does not leak into the viewer’s account (1)
 PASS [shared] no script errors: 
 
-ALL 103 PASSED
+ALL 106 PASSED

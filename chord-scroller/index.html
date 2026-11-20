@@ -173,10 +173,6 @@ a.item-row:hover b, .item-row .open:hover b { color: var(--chord); }
 
 .break-row { background: var(--surface-2); }
 .break-row .t b { font-size: 15px; color: var(--muted); }
-details.ready { margin-top: 12px; border: 1px solid var(--rule); border-radius: 12px; padding: 10px 12px; background: var(--surface); }
-details.ready summary { cursor: pointer; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-details.ready .issues { margin-top: 10px; }
-details.ready .issues a { font-weight: 600; }
 .history-list { display: grid; gap: 6px; max-height: 50vh; overflow: auto; }
 .history-list .h { display: flex; gap: 8px; align-items: center; justify-content: space-between; border: 1px solid var(--rule); border-radius: 10px; padding: 8px 10px; flex-wrap: wrap; }
 .offline-state { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
@@ -255,7 +251,7 @@ details.help summary { cursor: pointer; font-weight: 600; color: var(--fg); }
 .song-head h1 { font-family: var(--f-display); font-weight: 700; font-size: calc(30px * var(--scale)); line-height: 1.15; margin: 0; }
 .song-head .meta { color: var(--muted); display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 15px; }
 .song-head .meta b { font-family: var(--f-chord); color: var(--chord); font-weight: 600; }
-.sheet { display: grid; gap: calc(28px * var(--scale)); padding-bottom: 75vh; font-size: calc(25px * var(--scale)); }
+.sheet { display: grid; gap: calc(30px * var(--scale)); padding-bottom: 75vh; font-size: calc(clamp(27px, 18px + 2.2vw, 40px) * var(--scale)); }
 .stanza { display: grid; gap: calc(4px * var(--scale)); }
 .sec { font-family: var(--f-display); font-weight: 600; font-size: .62em; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); display: flex; align-items: center; gap: 10px; }
 .sec::after { content: ""; flex: 1; height: 1px; background: var(--rule); }
@@ -270,7 +266,7 @@ details.help summary { cursor: pointer; font-weight: 600; color: var(--fg); }
 .preview .line { cursor: default; }
 .lyr { display: flex; flex-wrap: wrap; align-items: flex-start; }
 .seg { display: inline-flex; flex-direction: column; max-width: 100%; }
-.ch { font-family: var(--f-chord); font-weight: 700; color: var(--chord); font-size: .92em; line-height: 1.25; padding-right: .55em; white-space: nowrap; min-height: 1.25em; }
+.ch { font-family: var(--f-chord); font-weight: 700; color: var(--chord); font-size: .96em; line-height: 1.25; padding-right: .55em; white-space: nowrap; min-height: 1.25em; }
 .ly { white-space: pre-wrap; line-height: 1.55; }
 .lyr.nochord .ch { display: none; }
 .lyr.onlychord .ly { display: none; }
@@ -327,7 +323,7 @@ details.help summary { cursor: pointer; font-weight: 600; color: var(--fg); }
 /* stage mode: bigger type, quieter chrome */
 .stage .bar .hide-stage, .stage .song-head .meta .hide-stage { display: none; }
 .stage .bar .wrap { min-height: 44px; }
-.stage .sheet { font-size: calc(31px * var(--scale)); }
+.stage .sheet { font-size: calc(clamp(31px, 20px + 2.6vw, 46px) * var(--scale)); }
 .stage .line.past { opacity: .18; }
 
 @media (max-width: 420px) {
@@ -1939,7 +1935,6 @@ function renderEvent(eventId) {
       <span>พร้อมเล่น <b>${sum.ready}/${sum.count}</b></span><span>ตรวจกับเพลงจริง <b>${sum.checked}/${sum.count}</b></span></div>
     <p class="small muted" style="margin:0">เวลารวม = เพลง ${fmtTime(sum.songSecs)} + พัก ${fmtTime(sum.breakSecs)} + ระหว่างเพลง ${fmtTime(sum.gapSecs)}${ev.gapSeconds ? ` (${ev.gapSeconds} วินาที/ครั้ง)` : ""} · ความยาวเพลงประมาณจาก BPM เว้นแต่ใส่ความยาวจริงไว้</p>
     ${(() => { const o = offlineStatus(ev.id); return o ? `<div class="offline-state small" style="margin-top:10px"><span class="chip ${o.ready ? "ok" : ""}" id="offline-state">${esc(o.text)}</span><button class="btn ghost" type="button" data-offline="${esc(ev.id)}">${o.ready ? "เตรียมใหม่" : "เตรียมเล่นออฟไลน์"}</button></div>` : ""; })()}
-    ${readinessPanel(ev, all)}
     ${w ? `<div class="row" style="margin-top:10px">
       <button class="btn" type="button" id="ev-edit">แก้ไขข้อมูลงาน</button>
       <button class="btn" type="button" id="ev-addset">${ICON.plus} เพิ่มเซ็ต</button>
@@ -1971,40 +1966,6 @@ function breakRow(it, w) {
     <span class="t"><b>${esc(it.label || "พัก")} · ${clamp(Number(it.minutes) || 0, 0, 240)} นาที</b><span class="a">ช่วงพัก ไม่มีเพลง</span></span>
     <span class="acts">${w ? `<button class="icon-btn" type="button" data-breakmenu="${esc(it.id)}" aria-label="ตั้งค่าช่วงพัก">${ICON.more}</button>` : ""}</span>
   </div>`;
-}
-/* ---------- ready for the stage? ---------- */
-function readinessIssues(ev, all) {
-  const out = [];
-  const songs = all.filter(i => !isBreak(i));
-  if (!songs.length) out.push({ level: "bad", text: "ยังไม่มีเพลงในงาน" });
-  const sum = summarize(all, ev);
-  if (ev.slotMinutes && sum.secs > ev.slotMinutes * 60) out.push({ level: "bad", text: `เวลารวม ${fmtTime(sum.secs)} เกินเวลางาน ${ev.slotMinutes} นาที` });
-  songs.forEach((it, i) => {
-    const s = Store.songs.get(it.songId), n = `${i + 1}. ${s ? s.title : "เพลงถูกลบ"}`;
-    if (!s) { out.push({ level: "bad", text: n + ": เพลงถูกลบจากคลัง", item: it.id }); return; }
-    const st = songStats(s);
-    if (!st.lyricLines) out.push({ level: "bad", text: n + ": ไม่มีเนื้อร้อง", song: s.id });
-    if (!st.chords) out.push({ level: "bad", text: n + ": ไม่มีคอร์ด", song: s.id });
-    if (st.unclear) out.push({ level: "warn", text: `${n}: อ่านไม่ชัด ${st.unclear} จุด`, song: s.id });
-    if (s.musicCheck !== "checked") out.push({ level: "info", text: n + ": ยังไม่ตรวจกับเพลงจริง", song: s.id });
-    if (!it.singer) out.push({ level: "info", text: n + ": ยังไม่กำหนดนักร้อง", item: it.id });
-    if (!validBpm(it.bpm) && !validBpm(s.bpm)) out.push({ level: "info", text: n + ": ยังไม่ตั้ง BPM (ใช้ 80)", item: it.id });
-  });
-  const off = typeof offlineStatus === "function" ? offlineStatus(ev.id) : null;
-  if (off && !off.ready) out.push({ level: "info", text: off.text, offline: true });
-  return out;
-}
-function readinessPanel(ev, all) {
-  const list = readinessIssues(ev, all);
-  const bad = list.filter(x => x.level === "bad").length, warn = list.filter(x => x.level === "warn").length, info = list.filter(x => x.level === "info").length;
-  const head = !list.length ? `<span class="chip ok">พร้อมขึ้นเวที</span>` :
-    `${bad ? `<span class="chip bad">ต้องแก้ ${bad}</span>` : ""}${warn ? `<span class="chip warn">ควรตรวจ ${warn}</span>` : ""}${info ? `<span class="chip">ยังไม่ครบ ${info}</span>` : ""}`;
-  const w = writable();
-  return `<details class="ready" ${bad || warn ? "open" : ""}><summary><b>ตรวจความพร้อมก่อนขึ้นเวที</b> ${head}</summary>
-    ${list.length ? `<ul class="issues">${list.map(x => `<li class="${x.level === "bad" ? "err" : x.level === "warn" ? "warn" : ""}">${esc(x.text)}
-      ${w && x.song ? ` <a href="#edit-${esc(x.song)}">แก้เพลง</a>` : ""}${w && x.item ? ` <button class="btn ghost" type="button" data-itemmenu="${esc(x.item)}">ตั้งค่า</button>` : ""}${x.offline ? ` <button class="btn ghost" type="button" data-offline="${esc(ev.id)}">เตรียมออฟไลน์</button>` : ""}</li>`).join("")}</ul>`
-    : `<p class="small muted">ทุกเพลงมีเนื้อร้องและคอร์ด ไม่มีจุดอ่านไม่ชัด ตรวจกับเพลงจริงแล้ว กำหนดนักร้องครบ และไม่เกินเวลา</p>`}
-  </details>`;
 }
 function openBreakSheet(eventId, setId, itemId) {
   const it = itemId ? Store.items.get(itemId) : null;
@@ -2811,6 +2772,8 @@ function renderPlayer(kind, a, b) {
     <div class="row" style="justify-content:space-between">
       <div class="stepper" role="group" aria-label="คาโป้" style="grid-template-columns:auto 30px auto 30px;gap:6px"><span class="cap" style="grid-column:auto">คาโป้</span>
         <button id="capo-down" type="button" aria-label="ลดคาโป้">−</button><span class="val" id="capo"></span><button id="capo-up" type="button" aria-label="เพิ่มคาโป้">+</button></div>
+      <div class="stepper" role="group" aria-label="ความเร็วเลื่อน" style="grid-template-columns:auto 34px auto 34px;gap:6px"><span class="cap" style="grid-column:auto">ความเร็วเลื่อน</span>
+        <button id="sp-down" type="button" aria-label="เลื่อนช้าลง">−</button><span class="val" id="speed"></span><button id="sp-up" type="button" aria-label="เลื่อนเร็วขึ้น">+</button></div>
       <div class="stepper" role="group" aria-label="ขนาดตัวหนังสือ" style="grid-template-columns:auto 34px 34px;gap:6px"><span class="cap" style="grid-column:auto">ตัวอักษร</span>
         <button id="fs-down" type="button" aria-label="ตัวหนังสือเล็กลง" style="font-size:14px">A−</button><button id="fs-up" type="button" aria-label="ตัวหนังสือใหญ่ขึ้น" style="font-size:14px">A+</button></div>
       <button class="btn ghost" type="button" id="reset" style="min-height:36px;padding:0 10px">คืนค่าเดิม</button>
@@ -2845,6 +2808,7 @@ function refreshPlayerChrome() {
   meta.push(`<span class="hide-stage">ยาวประมาณ ${fmtTime(P.total)}</span>`);
   $("#pl-meta").innerHTML = meta.join("");
   $("#bpm").textContent = P.bpm;
+  const sp = $("#speed"); if (sp) sp.textContent = Math.round(scrollSpeed * 100) + "%";
   $("#tr").textContent = P.shift === 0 ? "เดิม" : (P.shift > 0 ? "+" : "") + P.shift;
   $("#capo").textContent = P.capo;
   const note = $("#saved-note");
@@ -2879,7 +2843,12 @@ function measure() {
   P.tops = P.rows.map(el => el.getBoundingClientRect().top + window.scrollY);
   retime();
 }
-const secPerBar = () => 4 * 60 / P.bpm;
+/* How fast the sheet moves compared with the song's BPM, for this device. Below 100% it scrolls slower,
+   so there is time to read the chords ahead; the BPM itself is unchanged. */
+const SPEED_DEF = 0.75;
+let scrollSpeed = (() => { const v = +prefs.get("speed", SPEED_DEF); return v >= 0.4 && v <= 1.5 ? v : SPEED_DEF; })();
+const playBpm = () => P.bpm * scrollSpeed;
+const secPerBar = () => 4 * 60 / playBpm();
 function retime() {
   P.starts = []; let t = 0;
   P.rows.forEach(el => { P.starts.push(t); t += (+el.dataset.bars) * secPerBar(); });
@@ -2940,7 +2909,7 @@ function paint() {
   const t = (P.starts[P.cur] || 0) + (P.countBeats > 0 ? 0 : P.elapsed);
   $("#t-now").textContent = fmtTime(t);
   if (!P.dragging) $("#seek").value = P.total ? Math.round(t / P.total * 1000) : 0;
-  const beat = !P.playing ? -1 : P.countBeats > 0 ? 4 - P.countBeats : Math.floor(t / (60 / P.bpm)) % 4;
+  const beat = !P.playing ? -1 : P.countBeats > 0 ? 4 - P.countBeats : Math.floor(t / (60 / playBpm())) % 4;
   $$(".beats i").forEach((e, j) => e.classList.toggle("on", j === beat));
   const card = $("#next-card");
   if (card) {
@@ -2991,6 +2960,11 @@ function tapTempo() {
 }
 function setShift(v) { P.shift = (((v + 6) % 12) + 12) % 12 - 6; rebuildSheet(); refreshPlayerChrome(); queueSave({ shift: P.shift }); }
 function setCapo(v) { P.capo = clamp(v, 0, 11); rebuildSheet(); refreshPlayerChrome(); queueSave({ capo: P.capo }); }
+function setSpeed(v) {
+  scrollSpeed = Math.round(clamp(v, 0.4, 1.5) * 20) / 20;
+  prefs.set("speed", scrollSpeed);
+  $("#speed").textContent = Math.round(scrollSpeed * 100) + "%"; retime();
+}
 function setFont(v) {
   fontScale = Math.round(clamp(v, 0.7, 2) * 10) / 10;
   prefs.set("font", fontScale);
@@ -3027,6 +3001,8 @@ function wirePlayer() {
   $("#bpm-down").onclick = () => setBpm(P.bpm - 4);
   $("#bpm-up").onclick = () => setBpm(P.bpm + 4);
   // tempo tables often give double time: halve or double in one tap (saved for this song in this gig)
+  $("#sp-down").onclick = () => setSpeed(scrollSpeed - 0.05);
+  $("#sp-up").onclick = () => setSpeed(scrollSpeed + 0.05);
   $("#bpm-half").onclick = () => setBpm(P.bpm / 2);
   $("#bpm-dbl").onclick = () => setBpm(P.bpm * 2);
   $("#tap").onclick = tapTempo;
@@ -3052,7 +3028,7 @@ function frame(t) {
   if (P.playing && pActive() && !P.userScrolling && P.rows.length) {
     if (P.countBeats > 0) {
       P.countStart += dt;
-      const left = 4 - Math.floor(P.countStart / (60 / P.bpm));
+      const left = 4 - Math.floor(P.countStart / (60 / playBpm()));
       if (left <= 0) { P.countBeats = 0; showCount(0); } else { P.countBeats = left; showCount(5 - left); }
     } else {
       P.elapsed += dt;

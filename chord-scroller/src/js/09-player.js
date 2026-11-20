@@ -133,6 +133,8 @@ function renderPlayer(kind, a, b) {
     <div class="row" style="justify-content:space-between">
       <div class="stepper" role="group" aria-label="คาโป้" style="grid-template-columns:auto 30px auto 30px;gap:6px"><span class="cap" style="grid-column:auto">คาโป้</span>
         <button id="capo-down" type="button" aria-label="ลดคาโป้">−</button><span class="val" id="capo"></span><button id="capo-up" type="button" aria-label="เพิ่มคาโป้">+</button></div>
+      <div class="stepper" role="group" aria-label="ความเร็วเลื่อน" style="grid-template-columns:auto 34px auto 34px;gap:6px"><span class="cap" style="grid-column:auto">ความเร็วเลื่อน</span>
+        <button id="sp-down" type="button" aria-label="เลื่อนช้าลง">−</button><span class="val" id="speed"></span><button id="sp-up" type="button" aria-label="เลื่อนเร็วขึ้น">+</button></div>
       <div class="stepper" role="group" aria-label="ขนาดตัวหนังสือ" style="grid-template-columns:auto 34px 34px;gap:6px"><span class="cap" style="grid-column:auto">ตัวอักษร</span>
         <button id="fs-down" type="button" aria-label="ตัวหนังสือเล็กลง" style="font-size:14px">A−</button><button id="fs-up" type="button" aria-label="ตัวหนังสือใหญ่ขึ้น" style="font-size:14px">A+</button></div>
       <button class="btn ghost" type="button" id="reset" style="min-height:36px;padding:0 10px">คืนค่าเดิม</button>
@@ -167,6 +169,7 @@ function refreshPlayerChrome() {
   meta.push(`<span class="hide-stage">ยาวประมาณ ${fmtTime(P.total)}</span>`);
   $("#pl-meta").innerHTML = meta.join("");
   $("#bpm").textContent = P.bpm;
+  const sp = $("#speed"); if (sp) sp.textContent = Math.round(scrollSpeed * 100) + "%";
   $("#tr").textContent = P.shift === 0 ? "เดิม" : (P.shift > 0 ? "+" : "") + P.shift;
   $("#capo").textContent = P.capo;
   const note = $("#saved-note");
@@ -201,7 +204,12 @@ function measure() {
   P.tops = P.rows.map(el => el.getBoundingClientRect().top + window.scrollY);
   retime();
 }
-const secPerBar = () => 4 * 60 / P.bpm;
+/* How fast the sheet moves compared with the song's BPM, for this device. Below 100% it scrolls slower,
+   so there is time to read the chords ahead; the BPM itself is unchanged. */
+const SPEED_DEF = 0.75;
+let scrollSpeed = (() => { const v = +prefs.get("speed", SPEED_DEF); return v >= 0.4 && v <= 1.5 ? v : SPEED_DEF; })();
+const playBpm = () => P.bpm * scrollSpeed;
+const secPerBar = () => 4 * 60 / playBpm();
 function retime() {
   P.starts = []; let t = 0;
   P.rows.forEach(el => { P.starts.push(t); t += (+el.dataset.bars) * secPerBar(); });
@@ -262,7 +270,7 @@ function paint() {
   const t = (P.starts[P.cur] || 0) + (P.countBeats > 0 ? 0 : P.elapsed);
   $("#t-now").textContent = fmtTime(t);
   if (!P.dragging) $("#seek").value = P.total ? Math.round(t / P.total * 1000) : 0;
-  const beat = !P.playing ? -1 : P.countBeats > 0 ? 4 - P.countBeats : Math.floor(t / (60 / P.bpm)) % 4;
+  const beat = !P.playing ? -1 : P.countBeats > 0 ? 4 - P.countBeats : Math.floor(t / (60 / playBpm())) % 4;
   $$(".beats i").forEach((e, j) => e.classList.toggle("on", j === beat));
   const card = $("#next-card");
   if (card) {
@@ -313,6 +321,11 @@ function tapTempo() {
 }
 function setShift(v) { P.shift = (((v + 6) % 12) + 12) % 12 - 6; rebuildSheet(); refreshPlayerChrome(); queueSave({ shift: P.shift }); }
 function setCapo(v) { P.capo = clamp(v, 0, 11); rebuildSheet(); refreshPlayerChrome(); queueSave({ capo: P.capo }); }
+function setSpeed(v) {
+  scrollSpeed = Math.round(clamp(v, 0.4, 1.5) * 20) / 20;
+  prefs.set("speed", scrollSpeed);
+  $("#speed").textContent = Math.round(scrollSpeed * 100) + "%"; retime();
+}
 function setFont(v) {
   fontScale = Math.round(clamp(v, 0.7, 2) * 10) / 10;
   prefs.set("font", fontScale);
@@ -349,6 +362,8 @@ function wirePlayer() {
   $("#bpm-down").onclick = () => setBpm(P.bpm - 4);
   $("#bpm-up").onclick = () => setBpm(P.bpm + 4);
   // tempo tables often give double time: halve or double in one tap (saved for this song in this gig)
+  $("#sp-down").onclick = () => setSpeed(scrollSpeed - 0.05);
+  $("#sp-up").onclick = () => setSpeed(scrollSpeed + 0.05);
   $("#bpm-half").onclick = () => setBpm(P.bpm / 2);
   $("#bpm-dbl").onclick = () => setBpm(P.bpm * 2);
   $("#tap").onclick = tapTempo;
@@ -374,7 +389,7 @@ function frame(t) {
   if (P.playing && pActive() && !P.userScrolling && P.rows.length) {
     if (P.countBeats > 0) {
       P.countStart += dt;
-      const left = 4 - Math.floor(P.countStart / (60 / P.bpm));
+      const left = 4 - Math.floor(P.countStart / (60 / playBpm()));
       if (left <= 0) { P.countBeats = 0; showCount(0); } else { P.countBeats = left; showCount(5 - left); }
     } else {
       P.elapsed += dt;

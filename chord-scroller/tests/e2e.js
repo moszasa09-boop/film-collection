@@ -165,6 +165,15 @@ async function fitsWidth(p, w) {
     ok(halved === Math.round(saved / 2) && +(await a.textContent('#bpm')) === halved, '÷2 halves the tempo in one tap and saves it ' + halved);
     await a.click('#bpm-dbl'); await sleep(1300);
     ok((await st(a, id => ChordApp.Store.items.get(id).bpm, list[0].id)) === halved * 2, '×2 doubles it back');
+    // scroll speed: 75% of the tempo by default, adjustable, remembered on this device, BPM unchanged
+    ok((await a.textContent('#speed')) === '75%', 'sheet scrolls at 75% of the tempo by default');
+    const t75 = await a.evaluate(() => ChordApp.P.total);
+    await a.click('#sp-down'); await a.click('#sp-down'); await sleep(100);
+    const t65 = await a.evaluate(() => ChordApp.P.total);
+    ok((await a.textContent('#speed')) === '65%' && Math.abs(t65 / t75 - 75 / 65) < 0.01 && +(await a.textContent('#bpm')) === halved * 2, 'slower speed makes the song scroll longer without changing its BPM');
+    await a.reload(); await sleep(400);
+    ok((await a.textContent('#speed')) === '65%', 'the speed is remembered');
+    await a.click('#sp-up'); await a.click('#sp-up');
     await a.click('#stage'); await sleep(200);
     ok(await a.evaluate(() => document.body.classList.contains('stage')), 'stage mode turns on');
     await a.click('#stage');
