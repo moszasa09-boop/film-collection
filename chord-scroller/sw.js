@@ -1,7 +1,7 @@
 /* Service worker for the public link: keeps the app (one HTML file) and its fonts available offline.
    Page loads use the network when it answers and fall back to the cached copy; fonts are cache-first. */
 const CACHE = "chordscroll-app";
-const VERSION = "23fb09a112e1";
+const VERSION = "c6a5869f4b08";
 self.addEventListener("install", e => {
   e.waitUntil(caches.open(CACHE).then(c => c.add(new Request("./", { cache: "reload" }))).catch(() => {}).then(() => self.skipWaiting()));
 });
