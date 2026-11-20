@@ -1,0 +1,37 @@
+PASS creator becomes owner
+PASS owner sees the band's invites
+PASS owner writes a song, version 1
+PASS editor joins with the editor link
+PASS viewer joins with the viewer link
+PASS editor adds a row to a set
+PASS editor merges a field (version 2)
+PASS merge keeps the other fields
+PASS editor cannot see invite codes
+PASS editor cannot create invites
+PASS viewer reads the band's documents
+PASS viewer cannot insert
+PASS viewer update changes nothing
+PASS viewer delete removes nothing
+PASS viewer cannot make themself owner
+PASS viewer is still a viewer
+PASS member can change their own display name
+PASS viewer cannot call set_member_role
+PASS outsider sees no bands, members or documents
+PASS outsider cannot insert
+PASS bad invite code refused
+PASS anon cannot read documents
+PASS first save with the right rev succeeds
+PASS second save from the old rev is refused
+PASS refusal returns the newer version to choose from
+PASS viewer cannot save through put_doc_if
+PASS audit kept the overwritten and the deleted version
+PASS deleted song is recoverable from the audit
+PASS viewer cannot read the audit trail
+PASS last owner cannot step down
+PASS owner promotes viewer to editor
+PASS owner removes a member
+PASS removed member no longer sees the band
+PASS a member can leave
+PASS fresh allowance is 40 pictures per hour
+PASS allowance goes down as pictures are read
+36 passed, 0 failed
