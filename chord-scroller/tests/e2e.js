@@ -159,7 +159,12 @@ async function fitsWidth(p, w) {
     await a.goto(FILE + `#play-${evId}-${list[0].id}`); await sleep(300);
     await a.click('#bpm-up'); await sleep(1300);
     const saved = await st(a, id => ChordApp.Store.items.get(id).bpm, list[0].id);
-    ok(saved === (list[0].bpm || list[0].def) + 2, 'BPM changed in the player is saved to this gig item');
+    ok(saved === (list[0].bpm || list[0].def) + 4, 'BPM changed in the player is saved to this gig item');
+    await a.click('#bpm-half'); await sleep(1300);
+    const halved = await st(a, id => ChordApp.Store.items.get(id).bpm, list[0].id);
+    ok(halved === Math.round(saved / 2) && +(await a.textContent('#bpm')) === halved, '÷2 halves the tempo in one tap and saves it ' + halved);
+    await a.click('#bpm-dbl'); await sleep(1300);
+    ok((await st(a, id => ChordApp.Store.items.get(id).bpm, list[0].id)) === halved * 2, '×2 doubles it back');
     await a.click('#stage'); await sleep(200);
     ok(await a.evaluate(() => document.body.classList.contains('stage')), 'stage mode turns on');
     await a.click('#stage');

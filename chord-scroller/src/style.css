@@ -240,7 +240,7 @@ details.help summary { cursor: pointer; font-weight: 600; color: var(--fg); }
 .song-head h1 { font-family: var(--f-display); font-weight: 700; font-size: calc(30px * var(--scale)); line-height: 1.15; margin: 0; }
 .song-head .meta { color: var(--muted); display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 15px; }
 .song-head .meta b { font-family: var(--f-chord); color: var(--chord); font-weight: 600; }
-.sheet { display: grid; gap: calc(26px * var(--scale)); padding-bottom: 75vh; font-size: calc(21px * var(--scale)); }
+.sheet { display: grid; gap: calc(28px * var(--scale)); padding-bottom: 75vh; font-size: calc(25px * var(--scale)); }
 .stanza { display: grid; gap: calc(4px * var(--scale)); }
 .sec { font-family: var(--f-display); font-weight: 600; font-size: .62em; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); display: flex; align-items: center; gap: 10px; }
 .sec::after { content: ""; flex: 1; height: 1px; background: var(--rule); }
@@ -255,7 +255,7 @@ details.help summary { cursor: pointer; font-weight: 600; color: var(--fg); }
 .preview .line { cursor: default; }
 .lyr { display: flex; flex-wrap: wrap; align-items: flex-start; }
 .seg { display: inline-flex; flex-direction: column; max-width: 100%; }
-.ch { font-family: var(--f-chord); font-weight: 600; color: var(--chord); font-size: .86em; line-height: 1.25; padding-right: .55em; white-space: nowrap; min-height: 1.25em; }
+.ch { font-family: var(--f-chord); font-weight: 700; color: var(--chord); font-size: .92em; line-height: 1.25; padding-right: .55em; white-space: nowrap; min-height: 1.25em; }
 .ly { white-space: pre-wrap; line-height: 1.55; }
 .lyr.nochord .ch { display: none; }
 .lyr.onlychord .ly { display: none; }
@@ -302,6 +302,8 @@ details.help summary { cursor: pointer; font-weight: 600; color: var(--fg); }
 .tapwrap { display: grid; gap: 2px; }
 .tap { font-family: var(--f-display); font-weight: 600; font-size: 13px; padding: 0 8px; }
 .tap.hit { border-color: var(--now); color: var(--now); }
+.halfs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+.halfs button { height: 30px; min-width: 0; padding: 0; border: 1px solid var(--rule); background: transparent; border-radius: 8px; cursor: pointer; font-family: var(--f-chord); font-weight: 600; font-size: 13px; color: inherit; }
 .countin { position: fixed; inset: 0; display: grid; place-items: center; pointer-events: none; z-index: 25; font-family: var(--f-display); font-weight: 700; font-size: 34vmin; color: var(--now); opacity: .9; }
 .next-card { display: flex; gap: 10px; align-items: center; justify-content: space-between; background: var(--now-bg); border-radius: 10px; padding: 8px 10px; }
 .next-card b { font-size: 17px; }
@@ -310,7 +312,7 @@ details.help summary { cursor: pointer; font-weight: 600; color: var(--fg); }
 /* stage mode: bigger type, quieter chrome */
 .stage .bar .hide-stage, .stage .song-head .meta .hide-stage { display: none; }
 .stage .bar .wrap { min-height: 44px; }
-.stage .sheet { font-size: calc(26px * var(--scale)); }
+.stage .sheet { font-size: calc(31px * var(--scale)); }
 .stage .line.past { opacity: .18; }
 
 @media (max-width: 420px) {

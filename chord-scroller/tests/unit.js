@@ -29,6 +29,10 @@ const file = 'file://' + path.resolve(__dirname, '../index.html');
       if (b.type === "lines") b.lines.forEach(l => l.forEach(([c]) => { if (c && !A.isChord(c)) bad.push(c); }));
     }
     ok(!bad.length, "all starter chords recognised " + bad.join(","));
+    // the QAD gig: 2 rounds of 9 and 25 songs in the band's order
+    const qad = BUILTIN.items.filter(i => i.eventId === "eqad20nov26").sort((x, y) => x.order - y.order);
+    const qn = id => songs.find(s => s.id === id).title;
+    ok(qad.filter(i => i.setId === "r1").length === 9 && qad.filter(i => i.setId === "r2").length === 25 && qn(qad[0].songId) === "คุกเข่า" && qn(qad[8].songId) === "สักวันฉันจะดีพอ" && qn(qad[9].songId) === "ก่อนตาย" && qn(qad[33].songId) === "จันทร์เจ้า", "QAD gig: 9 + 25 songs in order");
     // the RISK @Central Rama 2 gig: 3 breaks of 8, 9 and 15 songs, no song twice
     const risk = BUILTIN.items.filter(i => i.eventId === "erisk13nov26");
     const per = ["b1", "b2", "b3"].map(id => risk.filter(i => i.setId === id).length).join(",");

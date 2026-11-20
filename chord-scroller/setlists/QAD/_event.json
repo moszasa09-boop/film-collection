@@ -1,0 +1,227 @@
+{
+ "id": "eqad20nov26",
+ "name": "งาน QAD",
+ "date": "",
+ "venue": "",
+ "slotMinutes": 135,
+ "note": "รอบ 1 18:15–19:00 (45 นาที) · รอบ 2 90 นาที",
+ "sets": [
+  {
+   "id": "r1",
+   "name": "รอบ 1"
+  },
+  {
+   "id": "r2",
+   "name": "รอบ 2"
+  }
+ ],
+ "rows": [
+  {
+   "song": "sd10785debda",
+   "set": "r1",
+   "singer": "มอส",
+   "bpm": 128
+  },
+  {
+   "song": "s9bsw4qs0dff",
+   "set": "r1",
+   "singer": "มอส",
+   "bpm": 110
+  },
+  {
+   "song": "sf22531604bf",
+   "set": "r1",
+   "singer": "คิง",
+   "bpm": 118
+  },
+  {
+   "song": "sfd66f357fb3",
+   "set": "r1",
+   "singer": "มอส",
+   "bpm": 104
+  },
+  {
+   "song": "sglsjpftel63",
+   "set": "r1",
+   "singer": "คิง",
+   "bpm": 100
+  },
+  {
+   "song": "s65esh9q3994",
+   "set": "r1",
+   "singer": "",
+   "bpm": 97
+  },
+  {
+   "song": "s35ktkr7llxt",
+   "set": "r1",
+   "singer": "",
+   "bpm": 114
+  },
+  {
+   "song": "sye9q29uffct",
+   "set": "r1",
+   "singer": "",
+   "bpm": 102
+  },
+  {
+   "song": "sejcy84l5e2n",
+   "set": "r1",
+   "singer": "มอส",
+   "bpm": 126
+  },
+  {
+   "song": "s820c2f20e69",
+   "set": "r2",
+   "singer": "คิง",
+   "bpm": 172
+  },
+  {
+   "song": "snft2hozyujj",
+   "set": "r2",
+   "singer": "",
+   "bpm": 136
+  },
+  {
+   "song": "spcyyr1rtny8",
+   "set": "r2",
+   "singer": "",
+   "bpm": 131
+  },
+  {
+   "song": "su5my3p6zvqx",
+   "set": "r2",
+   "singer": "",
+   "bpm": 100
+  },
+  {
+   "song": "s4b0483f60ce",
+   "set": "r2",
+   "singer": "คิง",
+   "bpm": 78
+  },
+  {
+   "song": "sa6f94ab0d4b",
+   "set": "r2",
+   "singer": "คิง",
+   "bpm": 102
+  },
+  {
+   "song": "s1h9mhnfjt8n",
+   "set": "r2",
+   "singer": "คิง",
+   "bpm": 96
+  },
+  {
+   "song": "sd87e299bf45",
+   "set": "r2",
+   "singer": "คิง",
+   "bpm": 182
+  },
+  {
+   "song": "s7van5e2iw52",
+   "set": "r2",
+   "singer": "",
+   "bpm": 81,
+   "note": "ตาราง tempo 162 · ใช้ครึ่งหนึ่ง 81"
+  },
+  {
+   "song": "saktgzg7rt78",
+   "set": "r2",
+   "singer": "",
+   "bpm": 102
+  },
+  {
+   "song": "s46d458c51ed",
+   "set": "r2",
+   "singer": "มอส",
+   "bpm": 150
+  },
+  {
+   "song": "sd7mgb3xj3mg",
+   "set": "r2",
+   "singer": "คิง",
+   "bpm": 160
+  },
+  {
+   "song": "sbd2fea5c57e",
+   "set": "r2",
+   "singer": "มอส",
+   "bpm": 130
+  },
+  {
+   "song": "sfxw6mllluvb",
+   "set": "r2",
+   "singer": "มอส",
+   "bpm": 150
+  },
+  {
+   "song": "s6cl56lqr6im",
+   "set": "r2",
+   "singer": "คิง",
+   "bpm": 157
+  },
+  {
+   "song": "se8568be728d",
+   "set": "r2",
+   "singer": "มอส",
+   "bpm": 135
+  },
+  {
+   "song": "syrm4utwtd3v",
+   "set": "r2",
+   "singer": "คิง",
+   "bpm": 128
+  },
+  {
+   "song": "s049e95c4e58",
+   "set": "r2",
+   "singer": "มอส",
+   "bpm": 134
+  },
+  {
+   "song": "sjbjlxmt982c",
+   "set": "r2",
+   "singer": "คิง",
+   "bpm": 116
+  },
+  {
+   "song": "sd0631e0d315",
+   "set": "r2",
+   "singer": "คิง (ร้องหลัก)",
+   "bpm": 89,
+   "note": "ตาราง tempo 178 · ใช้ครึ่งหนึ่ง 89"
+  },
+  {
+   "song": "sp7eyth7jawq",
+   "set": "r2",
+   "singer": "",
+   "bpm": 108,
+   "note": "ยังไม่ระบุคนร้อง"
+  },
+  {
+   "song": "s3jrciw8usw6",
+   "set": "r2",
+   "singer": "คิง (ร้องหลัก), มอส (เสริม)",
+   "bpm": 175
+  },
+  {
+   "song": "s4z4de0ds77c",
+   "set": "r2",
+   "singer": "คิง",
+   "bpm": 160
+  },
+  {
+   "song": "sovtwnhlh8cm",
+   "set": "r2",
+   "singer": "มอส",
+   "bpm": 135
+  },
+  {
+   "song": "sntt5em6c0vj",
+   "set": "r2",
+   "singer": "มอส",
+   "bpm": 111
+  }
+ ]
+}

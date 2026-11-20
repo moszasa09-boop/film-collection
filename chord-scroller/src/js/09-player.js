@@ -115,7 +115,7 @@ function renderPlayer(kind, a, b) {
     </div>
     ${writable() ? `<p style="text-align:center"><a class="btn ghost" href="#edit-${s.id}">แก้เนื้อเพลง/คอร์ด</a></p>` : ""}
   </main>
-  <div style="height:230px"></div>
+  <div style="height:270px"></div>
   <section class="player" aria-label="ตัวควบคุมการเล่น"><div class="wrap">
     <div class="status" aria-live="polite"><span class="now-sec" id="now-sec"></span><span class="next-sec" id="next-sec"></span>
       <span class="beats" aria-hidden="true"><i></i><i></i><i></i><i></i></span></div>
@@ -125,7 +125,8 @@ function renderPlayer(kind, a, b) {
       <button class="play" id="play" type="button" aria-label="เล่น">${ICON.play}</button>
       <div class="stepper" role="group" aria-label="ความเร็วเพลง"><span class="cap">BPM</span>
         <button id="bpm-down" type="button" aria-label="ช้าลง">−</button><span class="val" id="bpm"></span><button id="bpm-up" type="button" aria-label="เร็วขึ้น">+</button></div>
-      <div class="tapwrap"><span class="cap">จับจังหวะ</span><button class="tap" id="tap" type="button">แตะตาม</button></div>
+      <div class="tapwrap"><span class="cap">จับจังหวะ</span><button class="tap" id="tap" type="button">แตะตาม</button>
+        <div class="halfs"><button id="bpm-half" type="button" aria-label="ช้าลงครึ่งหนึ่ง">÷2</button><button id="bpm-dbl" type="button" aria-label="เร็วขึ้นเท่าตัว">×2</button></div></div>
       <div class="stepper" role="group" aria-label="เปลี่ยนคีย์"><span class="cap">คีย์</span>
         <button id="tr-down" type="button" aria-label="ลดคีย์ครึ่งเสียง">−</button><span class="val key" id="tr"></span><button id="tr-up" type="button" aria-label="เพิ่มคีย์ครึ่งเสียง">+</button></div>
     </div>
@@ -345,8 +346,11 @@ function toggleStage() {
 }
 function wirePlayer() {
   $("#play").onclick = togglePlay;
-  $("#bpm-down").onclick = () => setBpm(P.bpm - 2);
-  $("#bpm-up").onclick = () => setBpm(P.bpm + 2);
+  $("#bpm-down").onclick = () => setBpm(P.bpm - 4);
+  $("#bpm-up").onclick = () => setBpm(P.bpm + 4);
+  // tempo tables often give double time: halve or double in one tap (saved for this song in this gig)
+  $("#bpm-half").onclick = () => setBpm(P.bpm / 2);
+  $("#bpm-dbl").onclick = () => setBpm(P.bpm * 2);
   $("#tap").onclick = tapTempo;
   $("#tr-down").onclick = () => setShift(P.shift - 1);
   $("#tr-up").onclick = () => setShift(P.shift + 1);
