@@ -236,7 +236,7 @@ details.help summary { cursor: pointer; font-weight: 600; color: var(--fg); }
 .song-head h1 { font-family: var(--f-display); font-weight: 700; font-size: calc(30px * var(--scale)); line-height: 1.15; margin: 0; }
 .song-head .meta { color: var(--muted); display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 15px; }
 .song-head .meta b { font-family: var(--f-chord); color: var(--chord); font-weight: 600; }
-.sheet { display: grid; gap: calc(30px * var(--scale)); padding-bottom: 75vh; font-size: calc(clamp(27px, 18px + 2.2vw, 40px) * var(--scale)); }
+.sheet { display: grid; gap: calc(30px * var(--scale)); padding-bottom: 75vh; font-size: calc(clamp(26px, 18px + 1.2vw, 34px) * var(--scale)); }
 .stanza { display: grid; gap: calc(4px * var(--scale)); }
 .sec { font-family: var(--f-display); font-weight: 600; font-size: .62em; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); display: flex; align-items: center; gap: 10px; }
 .sec::after { content: ""; flex: 1; height: 1px; background: var(--rule); }
@@ -308,7 +308,7 @@ details.help summary { cursor: pointer; font-weight: 600; color: var(--fg); }
 /* stage mode: bigger type, quieter chrome */
 .stage .bar .hide-stage, .stage .song-head .meta .hide-stage { display: none; }
 .stage .bar .wrap { min-height: 44px; }
-.stage .sheet { font-size: calc(clamp(31px, 20px + 2.6vw, 46px) * var(--scale)); }
+.stage .sheet { font-size: calc(clamp(28px, 20px + 1.3vw, 36px) * var(--scale)); }
 .stage .line.past { opacity: .18; }
 
 /* whole song on one screen: columns sized by fitOverview(), no scrolling, no player panel */
