@@ -174,6 +174,20 @@ async function fitsWidth(p, w) {
     await a.reload(); await sleep(400);
     ok((await a.textContent('#speed')) === '65%', 'the speed is remembered');
     await a.click('#sp-up'); await a.click('#sp-up');
+    // whole song on one screen (tablet): no scrolling, no player panel, text not below 16 px
+    await a.setViewportSize({ width: 1180, height: 820 }); await sleep(200);
+    await a.click('#overview'); await sleep(500);
+    const ov = await a.evaluate(() => {
+      const s = document.querySelector('#sheet'), b = s.getBoundingClientRect(), l = s.lastElementChild.getBoundingClientRect();
+      return { on: document.body.classList.contains('overview'), font: parseFloat(s.style.fontSize), fit: l.right <= b.right + 1 && l.bottom <= b.bottom + 1,
+        panel: getComputedStyle(document.querySelector('.player')).display, noScroll: document.documentElement.scrollHeight <= innerHeight + 1 };
+    });
+    ok(ov.on && ov.fit && ov.font >= 16 && ov.panel === 'none' && ov.noScroll, 'ดูทั้งเพลง shows the whole song on one tablet screen ' + JSON.stringify(ov));
+    await a.reload(); await sleep(600);
+    ok(await a.evaluate(() => document.body.classList.contains('overview')), 'the whole-song view is remembered');
+    await a.click('#overview'); await sleep(300);
+    ok(await a.evaluate(() => !document.body.classList.contains('overview') && !document.querySelector('#sheet').style.fontSize), 'turning it off returns to the scrolling sheet');
+    await a.setViewportSize({ width: 390, height: 844 }); await sleep(200);
     await a.click('#stage'); await sleep(200);
     ok(await a.evaluate(() => document.body.classList.contains('stage')), 'stage mode turns on');
     await a.click('#stage');

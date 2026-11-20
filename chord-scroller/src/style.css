@@ -311,6 +311,23 @@ details.help summary { cursor: pointer; font-weight: 600; color: var(--fg); }
 .stage .sheet { font-size: calc(clamp(31px, 20px + 2.6vw, 46px) * var(--scale)); }
 .stage .line.past { opacity: .18; }
 
+/* whole song on one screen: columns sized by fitOverview(), no scrolling, no player panel */
+.overview .player, .overview .player-space, .overview .guide, .overview .next-song, .overview .next-song + p { display: none; }
+.overview main.wrap { max-width: none; }
+/* the top bar already names the song: give the height to the sheet */
+.overview .song-head { min-height: 0; padding-block: 8px 4px; }
+.overview .song-head h1, .overview .song-head .meta { display: none; }
+.overview .sheet { display: block; columns: 16em; column-gap: 1.4em; column-rule: 1px solid var(--rule); column-fill: auto; padding-bottom: 0; overflow-x: auto; overflow-y: hidden; }
+.overview .stanza { display: block; margin-bottom: .45em; }
+.overview .sec { break-after: avoid; font-size: .55em; }
+.overview .line, .overview .instru { break-inside: avoid; cursor: default; }
+.overview .line { padding: 0 2px 1px; margin: 0; }
+.overview .ch { line-height: 1.1; min-height: 1.1em; }
+.overview .ly { line-height: 1.3; }
+.overview .instru { padding: 4px 8px 6px; margin: 0 0 .2em; }
+.overview .line.past, .overview .line.now { opacity: 1; background: none; }
+.overview .line::before, .overview .line::after { display: none; }
+
 @media (max-width: 420px) {
   .ctrls { gap: 4px; }
   .stepper { grid-template-columns: 30px auto 30px; }

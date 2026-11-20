@@ -9,7 +9,7 @@ PASS [device] four songs placed in the gig ห้ามใจ, ก่อนต�
 PASS [device] picker warns a song is already in the gig
 PASS [device] gig shows count, total time and planned minutes
 PASS [device] negative BPM refused
-PASS [device] key +2, capo 2, BPM 100, singer and note saved on this gig {"eventId":"1sfixbaj6y9c","setId":"jdzh0i00yfi1","songId":"sd0631e0d315","order":1000,"shift":2,"capo":2,"bpm":100,"singer":"โม","note":"เริ่มช้า ๆ","updatedAt":1795176554180,"updatedBy":null,"id":"mb0xz5dqdgai"}
+PASS [device] key +2, capo 2, BPM 100, singer and note saved on this gig {"eventId":"pjtca49deue9","setId":"x6w6syjm3l42","songId":"sd0631e0d315","order":1000,"shift":2,"capo":2,"bpm":100,"singer":"โม","note":"เริ่มช้า ๆ","updatedAt":1795178353143,"updatedBy":null,"id":"cocxvp3mvmkd"}
 PASS [device] the same song in เบรค 2 keeps its own settings
 PASS [device] row shows the gig key F#m and capo
 PASS [device] dragged 3rd song to the top: ห้ามใจ / ฝากที / คุกเข่า / ก่อนตาย → คุกเข่า / ห้ามใจ / ฝากที / ก่อนตาย
@@ -33,16 +33,19 @@ PASS [device] ×2 doubles it back
 PASS [device] sheet scrolls at 75% of the tempo by default
 PASS [device] slower speed makes the song scroll longer without changing its BPM
 PASS [device] the speed is remembered
+PASS [device] ดูทั้งเพลง shows the whole song on one tablet screen {"on":true,"font":20.4,"fit":true,"panel":"none","noScroll":true}
+PASS [device] the whole-song view is remembered
+PASS [device] turning it off returns to the scrolling sheet
 PASS [device] stage mode turns on
 PASS [device] 320px home fits: 
-PASS [device] 320px #event-1sfixbaj6y9c fits: 
-PASS [device] 320px #play-1sfixbaj6y9c-mb0xz5dqdgai fits: 
+PASS [device] 320px #event-pjtca49deue9 fits: 
+PASS [device] 320px #play-pjtca49deue9-cocxvp3mvmkd fits: 
 PASS [device] 320px #library fits: 
 PASS [device] 320px #data fits: 
 PASS [device] 320px #new-text fits: 
 PASS [device] 360px home fits: 
-PASS [device] 360px #event-1sfixbaj6y9c fits: 
-PASS [device] 360px #play-1sfixbaj6y9c-mb0xz5dqdgai fits: 
+PASS [device] 360px #event-pjtca49deue9 fits: 
+PASS [device] 360px #play-pjtca49deue9-cocxvp3mvmkd fits: 
 PASS [device] 360px #library fits: 
 PASS [device] 360px #data fits: 
 PASS [device] 360px #new-text fits: 
@@ -105,4 +108,4 @@ PASS [shared] viewer sees the owner’s change
 PASS [shared] text size set by the owner does not leak into the viewer’s account (1)
 PASS [shared] no script errors: 
 
-ALL 106 PASSED
+ALL 109 PASSED

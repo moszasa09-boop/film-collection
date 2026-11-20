@@ -88,6 +88,7 @@ function renderPlayer(kind, a, b) {
   fontScale = prefs.get("font", 1);
   document.documentElement.style.setProperty("--scale", fontScale);
   document.body.classList.toggle("stage", !!prefs.get("stage", false));
+  document.body.classList.toggle("overview", !!prefs.get("overview", false));
   const s = ctx.song;
   document.title = s.title + " · คอร์ดเลื่อนตามเพลง";
   const back = ctx.event ? "#event-" + ctx.event.id : "#library";
@@ -97,6 +98,7 @@ function renderPlayer(kind, a, b) {
     title: `${esc(s.title)}${s.artist ? `<small>${esc(s.artist)}</small>` : ""}`, back, sync: false,
     right: `${prev ? `<a class="icon-btn" href="#play-${ctx.event.id}-${prev.id}" aria-label="เพลงก่อนหน้า: ${esc(nameOf(prev))}">${ICON.prevSong}</a>` : ""}
       ${next ? `<a class="icon-btn" href="#play-${ctx.event.id}-${next.id}" aria-label="เพลงถัดไป: ${esc(nameOf(next))}">${ICON.nextSong}</a>` : ""}
+      <button class="icon-btn" id="overview" type="button" aria-pressed="${!!prefs.get("overview", false)}" aria-label="ดูทั้งเพลง" title="ดูทั้งเพลง">${ICON.overview}</button>
       <button class="icon-btn" id="stage" type="button" aria-pressed="${!!prefs.get("stage", false)}" aria-label="โหมดเวที" title="โหมดเวที">${ICON.stage}</button>
 `
   }) + `
@@ -115,7 +117,7 @@ function renderPlayer(kind, a, b) {
     </div>
     ${writable() ? `<p style="text-align:center"><a class="btn ghost" href="#edit-${s.id}">แก้เนื้อเพลง/คอร์ด</a></p>` : ""}
   </main>
-  <div style="height:270px"></div>
+  <div class="player-space" style="height:270px"></div>
   <section class="player" aria-label="ตัวควบคุมการเล่น"><div class="wrap">
     <div class="status" aria-live="polite"><span class="now-sec" id="now-sec"></span><span class="next-sec" id="next-sec"></span>
       <span class="beats" aria-hidden="true"><i></i><i></i><i></i><i></i></span></div>
@@ -200,6 +202,7 @@ async function flushSave() {
 
 /* ---------- timeline ---------- */
 function measure() {
+  if (isOverview()) fitOverview();
   P.rows = $$("#sheet .line");
   P.tops = P.rows.map(el => el.getBoundingClientRect().top + window.scrollY);
   retime();
@@ -226,6 +229,7 @@ function rowAtScroll() {
   return k;
 }
 function scrollToRow(k, instant) {
+  if (isOverview()) return;   // the whole song is on screen
   if (!P.rows[k]) return;
   P.autoScrollUntil = performance.now() + 900;
   window.scrollTo({ top: Math.max(0, P.tops[k] - guideY() + 2), behavior: instant || reduceMotion() ? "auto" : "smooth" });
@@ -306,7 +310,7 @@ function startPlay() {
   setPlayIcon(); lockScreen(); paint();
 }
 function stopPlay() { P.playing = false; P.countBeats = 0; showCount(0); setPlayIcon(); releaseScreen(); }
-const togglePlay = () => P.playing ? stopPlay() : startPlay();
+const togglePlay = () => P.playing ? stopPlay() : isOverview() ? null : startPlay();
 function setBpm(v) {
   P.bpm = clamp(Math.round(v), 40, 220);
   $("#bpm").textContent = P.bpm; retime(); refreshPlayerChrome();
@@ -347,6 +351,46 @@ async function resetSettings() {
     toast("คืนค่าเดิมแล้ว", 6000, { text: "ย้อนกลับ", run: () => { P.shift = before.shift; P.capo = before.capo; P.bpm = before.bpm; rebuildSheet(); retime(); refreshPlayerChrome(); if (!ctx.item) prefs.set("lib:" + ctx.song.id, { shift: before.shift, capo: before.capo }); } });
   }
 }
+/* ---------- whole song on one screen ----------
+   The sheet flows into columns that fill the screen, at the largest text size that still shows every line
+   (never below OV_MIN px: a song too long for that continues in further columns to the right, swiped sideways). */
+const OV_MIN = 16, OV_MAX = 38;
+const isOverview = () => document.body.classList.contains("overview");
+function fitOverview() {
+  const sh = $("#sheet"); if (!sh) return;
+  const top = sh.getBoundingClientRect().top + window.scrollY;
+  sh.style.height = Math.max(240, window.innerHeight - top - 12) + "px";
+  // fits = the last line ends inside the sheet's box (an overflowing song spills into columns to the right)
+  const fits = px => {
+    sh.style.fontSize = px + "px";
+    const last = sh.lastElementChild; if (!last) return true;
+    const r = last.getBoundingClientRect(), box = sh.getBoundingClientRect();
+    return r.right <= box.right + 1 && r.bottom <= box.bottom + 1;
+  };
+  // try 1-6 columns; keep the one that shows the whole song with the biggest text (columns at least 15em wide,
+  // so a sung line mostly stays on one row)
+  let best = null;
+  for (let n = 1; n <= 6; n++) {
+    const hi0 = Math.min(OV_MAX, sh.clientWidth / n / 15);
+    if (hi0 < OV_MIN) break;
+    sh.style.columns = String(n);
+    if (!fits(OV_MIN)) continue;
+    let lo = OV_MIN, hi = hi0;
+    if (fits(hi)) lo = hi;
+    else for (let i = 0; i < 8; i++) { const mid = (lo + hi) / 2; if (fits(mid)) lo = mid; else hi = mid; }
+    if (!best || lo > best.px) best = { n, px: lo };
+  }
+  if (best) { sh.style.columns = String(best.n); sh.style.fontSize = Math.floor(best.px * 10) / 10 + "px"; }
+  else { sh.style.columns = ""; sh.style.fontSize = OV_MIN + "px"; }   // too long for one screen: more columns to the right
+}
+function toggleOverview() {
+  const on = !isOverview();
+  document.body.classList.toggle("overview", on); prefs.set("overview", on);
+  $("#overview").setAttribute("aria-pressed", on);
+  const sh = $("#sheet");
+  if (on) { stopPlay(); window.scrollTo(0, 0); measure(); }
+  else { sh.style.height = ""; sh.style.fontSize = ""; sh.style.columns = ""; measure(); scrollToRow(P.cur, true); }
+}
 function toggleStage() {
   const on = !document.body.classList.contains("stage");
   document.body.classList.toggle("stage", on); prefs.set("stage", on);
@@ -374,6 +418,7 @@ function wirePlayer() {
   $("#fs-down").onclick = () => setFont(fontScale - 0.1);
   $("#fs-up").onclick = () => setFont(fontScale + 0.1);
   $("#stage").onclick = toggleStage;
+  $("#overview").onclick = toggleOverview;
   $("#reset").onclick = resetSettings;
   const seek = $("#seek");
   seek.addEventListener("input", () => { P.dragging = true; seekTo(P.total * seek.value / 1000); });
@@ -449,5 +494,5 @@ if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { if
 function leavePlayer() {
   if (P.pendingSave) { clearTimeout(P.saveTimer); flushSave(); }
   stopPlay(); P.ctx = null; P.key = "";
-  document.body.classList.remove("player-on", "stage", "playing");
+  document.body.classList.remove("player-on", "stage", "playing", "overview");
 }
